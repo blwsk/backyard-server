@@ -24,6 +24,7 @@ jobs:
           USERNAME: ${{ secrets.USERNAME }}
           PORT: ${{ secrets.PORT }}
           PASSWORD: ${{ secrets.PASSWORD }}
+          BLAHBLAHBLAH: hey
         with:
           source: "."
           target: "/var/www/html"
@@ -38,4 +39,4 @@ jobs:
           script: |
             cd /var/www/html
             npm install
-            BLAHBLAHBLAH=hey npm start
+            npm start

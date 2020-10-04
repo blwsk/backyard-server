@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node ./node_modules/pm2/bin/pm2 start ./server.js --name backyard_server --log ./logs/app.log -f",
-    "stop": "node ./node_modules/pm2/bin/pm2 stop backyard_server",
+    "start": "./node_modules/.bin/nodenv \"./node_modules/pm2/bin/pm2\" start ./server.js --name backyard_server --log ./logs/app.log -f",
+    "stop": "./node_modules/.bin/nodenv \"./node_modules/pm2/bin/pm2\" stop backyard_server",
     "build": "echo 'Building...'"
   },
   "dependencies": {
     "express": "^4.17.1",
+    "node-env-run": "^4.0.2",
     "pm2": "^4.2.0"
   },
   "repository": "https://github.com/blwsk/backyard-server.git",
