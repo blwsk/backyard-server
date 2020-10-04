@@ -33,7 +33,7 @@ jobs:
         env:
           TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          BLAHBLAHBLAH: "hey"
+          BLAHBLAHBLAH: "hey from prod"
         with:
           host: ${{ secrets.HOST }}
           USERNAME: ${{ secrets.USERNAME }}
@@ -42,6 +42,23 @@ jobs:
           envs: TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN,BLAHBLAHBLAH
           script: |
             cd /var/www/html
-            echo "$BLAHBLAHBLAH"
             npm install
+            touch ecosystem.config.js
+            echo >> ecosystem.config.js "module.exports = {
+              apps: [
+                {
+                  name: \"backyard_server\",
+                  script: \"./server.js\",
+                  logs: \"./logs/app.log\",
+                  watch: true,
+                  env: {
+                    PORT: 8080,
+                    NODE_ENV: \"production\",
+                    BLAHBLAHBLAH: $BLAHBLAHBLAH,
+                    TWILIO_ACCOUNT_SID: $TWILIO_ACCOUNT_SID,
+                    TWILIO_AUTH_TOKEN: $TWILIO_AUTH_TOKEN,
+                  },
+                },
+              ],
+            };"
             npm start
