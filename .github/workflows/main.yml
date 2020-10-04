@@ -39,6 +39,7 @@ jobs:
           USERNAME: ${{ secrets.USERNAME }}
           PORT: ${{ secrets.PORT }}
           PASSWORD: ${{ secrets.PASSWORD }}
+          envs: TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN,BLAHBLAHBLAH
           script: |
             cd /var/www/html
             npm install
