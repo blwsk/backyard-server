@@ -24,13 +24,16 @@ jobs:
           USERNAME: ${{ secrets.USERNAME }}
           PORT: ${{ secrets.PORT }}
           PASSWORD: ${{ secrets.PASSWORD }}
-          BLAHBLAHBLAH: hey
         with:
           source: "."
           target: "/var/www/html"
 
-      - name: Executing remote  command
+      - name: Executing remote command
         uses: appleboy/ssh-action@master
+        env:
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          BLAHBLAHBLAH: "hey"
         with:
           host: ${{ secrets.HOST }}
           USERNAME: ${{ secrets.USERNAME }}
