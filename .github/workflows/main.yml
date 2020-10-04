@@ -42,5 +42,6 @@ jobs:
           envs: TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN,BLAHBLAHBLAH
           script: |
             cd /var/www/html
+            echo "$BLAHBLAHBLAH"
             npm install
             npm start
