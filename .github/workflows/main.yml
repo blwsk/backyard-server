@@ -43,6 +43,7 @@ jobs:
           script: |
             cd /var/www/html
             npm install
+            rm -rf ecosystem.config.js
             touch ecosystem.config.js
             echo >> ecosystem.config.js "module.exports = {
               apps: [
