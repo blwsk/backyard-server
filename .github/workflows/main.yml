@@ -54,9 +54,9 @@ jobs:
                   env: {
                     PORT: 8080,
                     NODE_ENV: \"production\",
-                    BLAHBLAHBLAH: $BLAHBLAHBLAH,
-                    TWILIO_ACCOUNT_SID: $TWILIO_ACCOUNT_SID,
-                    TWILIO_AUTH_TOKEN: $TWILIO_AUTH_TOKEN,
+                    BLAHBLAHBLAH: "$BLAHBLAHBLAH",
+                    TWILIO_ACCOUNT_SID: "$TWILIO_ACCOUNT_SID",
+                    TWILIO_AUTH_TOKEN: "$TWILIO_AUTH_TOKEN",
                   },
                 },
               ],
