@@ -3,15 +3,11 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node ./node_modules/pm2/bin/pm2 start ecosystem.config.js -f && exit 0",
-    "stop": "node ./node_modules/pm2/bin/pm2 stop ecosystem.config.js",
-    "build": "echo 'Building...'",
-    "dev": "pm2-dev start ecosystem.config.js"
+    "start": "node server.js",
+    "build": "echo 'Building...' && yarn"
   },
   "dependencies": {
-    "express": "^4.17.1",
-    "node-env-run": "^4.0.2",
-    "pm2": "^4.2.0"
+    "express": "^4.17.1"
   },
   "repository": "https://github.com/blwsk/backyard-server.git",
   "author": "Kevin Bielawski <kbielawsk7@gmail.com>",
