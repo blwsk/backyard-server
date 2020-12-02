@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node ./node_modules/pm2/bin/pm2 start ecosystem.config.js -f",
+    "start": "node ./node_modules/pm2/bin/pm2 start ecosystem.config.js -f && echo 0",
     "stop": "node ./node_modules/pm2/bin/pm2 stop ecosystem.config.js",
     "build": "echo 'Building...'",
     "dev": "pm2-dev start ecosystem.config.js"
