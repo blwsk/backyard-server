@@ -11,8 +11,7 @@
   "dependencies": {
     "express": "^4.17.1",
     "node-env-run": "^4.0.2",
-    "pm2": "^4.2.0",
-    "twilio": "^3.49.4"
+    "pm2": "^4.2.0"
   },
   "repository": "https://github.com/blwsk/backyard-server.git",
   "author": "Kevin Bielawski <kbielawsk7@gmail.com>",
