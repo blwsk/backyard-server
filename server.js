@@ -57,5 +57,5 @@ cron.schedule("0 * * * *", async () => {
 });
 
 app.listen(port, () => {
-  console.log(`App listening at http://localhost:${port}`);
+  console.log(`App listening at ${port}`);
 });
