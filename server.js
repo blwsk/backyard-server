@@ -50,6 +50,17 @@ cron.schedule("0 * * * *", async () => {
 
   const recentItems = getRecentItems(feedManifests);
 
+  /**
+   * If no new items, do nothing
+   */
+  if (recentItems.length === 0) {
+    console.log("\tNo recent items to save.");
+    return;
+  }
+
+  /**
+   * Otherwise, make requests to backyard-web for each
+   */
   const saveItemsForUser = makeSaveItemsForUser({ access_token });
 
   const bulkSaveResult = await Promise.all(
@@ -58,7 +69,7 @@ cron.schedule("0 * * * *", async () => {
     )
   );
 
-  console.log(`Sent ${bulkSaveResult.length} items to backyard.wtf`);
+  console.log(`\tSent ${bulkSaveResult.length} items to backyard.wtf`);
 });
 
 app.listen(port, () => {
