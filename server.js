@@ -21,8 +21,16 @@ app.get("/", async (req, res) => {
 const makeSaveItemsForUser = ({ access_token }) => ({
   userId,
   itemsToSave,
+  feedUrl,
 }) => {
-  return fetch(`${BACKYARD_ROOT_URI}/api/rss/bulk-save?userId=${userId}`, {
+  const params = [
+    `userId=${userId}`,
+    `feedUrl=${encodeURIComponent(feedUrl)}`,
+  ].join("&");
+
+  const uri = `${BACKYARD_ROOT_URI}/api/rss/bulk-save?${params}`;
+
+  return fetch(uri, {
     method: "POST",
     body: JSON.stringify(itemsToSave),
     headers: {
@@ -64,8 +72,8 @@ cron.schedule("0 * * * *", async () => {
   const saveItemsForUser = makeSaveItemsForUser({ access_token });
 
   const bulkSaveResult = await Promise.all(
-    recentItems.map(({ userId, itemsToSave }) =>
-      saveItemsForUser({ userId, itemsToSave })
+    recentItems.map(({ userId, itemsToSave, feedUrl }) =>
+      saveItemsForUser({ userId, itemsToSave, feedUrl })
     )
   );
 
