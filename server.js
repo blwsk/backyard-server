@@ -77,7 +77,13 @@ cron.schedule("0 * * * *", async () => {
     )
   );
 
-  console.log(`\tSent ${bulkSaveResult.length} items to backyard.wtf`);
+  void bulkSaveResult;
+
+  const num = recentItems.reduce((acc, { itemsToSave }) => {
+    return (acc += itemsToSave.length);
+  }, 0);
+
+  console.log(`\tSent ${num} items to backyard.wtf`);
 });
 
 app.listen(port, () => {
