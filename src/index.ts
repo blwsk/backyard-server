@@ -26,6 +26,8 @@ const makeSaveItemsForUser = ({ access_token }: { access_token: string }) => ({
 
   const uri = `${BACKYARD_ROOT_URI}/api/rss/bulk-save?${params}`;
 
+  console.log(`Saving items at ${uri.slice(0, 50)}`);
+
   return fetch(uri, {
     method: "POST",
     body: JSON.stringify(itemsToSave),
@@ -35,30 +37,35 @@ const makeSaveItemsForUser = ({ access_token }: { access_token: string }) => ({
   }).then((res) => res.json());
 };
 
-cron.schedule("* * * * *", async () => {
+cron.schedule("0 * * * *", async () => {
   const { access_token } = await getAccessToken();
 
-  const { json, before, after, message } = await fetch(
-    `${BACKYARD_ROOT_URI}/api/rss/poll-subs`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
-    }
-  ).then((r) => r.json());
+  const uri = `${BACKYARD_ROOT_URI}/api/rss/poll-subs`;
+
+  console.log(`Fetching rss subscriptions at ${uri}`);
+
+  const { json, before, after, message } = await fetch(uri, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${access_token}`,
+    },
+  }).then((r) => r.json());
 
   console.log(message);
 
   const feedManifests = await rss({ json, before, after });
 
-  const recentItems = getRecentItems(feedManifests);
+  const recentItemFeeds = getRecentItems(feedManifests);
+
+  const numRecentItems = recentItemFeeds.reduce((acc, { itemsToSave }) => {
+    return (acc += itemsToSave.length);
+  }, 0);
 
   /**
    * If no new items, do nothing
    */
-  if (recentItems.length === 0) {
-    console.log("\tNo recent items to save.");
+  if (numRecentItems === 0) {
+    console.log("No recent items to save.");
     return;
   }
 
@@ -68,16 +75,12 @@ cron.schedule("* * * * *", async () => {
   const saveItemsForUser = makeSaveItemsForUser({ access_token });
 
   const bulkSaveResult = await Promise.all(
-    recentItems.map(({ userId, itemsToSave, feedUrl }) =>
+    recentItemFeeds.map(({ userId, itemsToSave, feedUrl }) =>
       saveItemsForUser({ userId, itemsToSave, feedUrl })
     )
   );
 
   void bulkSaveResult;
 
-  const num = recentItems.reduce((acc, { itemsToSave }) => {
-    return (acc += itemsToSave.length);
-  }, 0);
-
-  console.log(`\tSent ${num} items to backyard.wtf`);
+  console.log(`Sent ${numRecentItems} items to backyard.wtf\n`);
 });
