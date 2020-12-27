@@ -1,3 +1,8 @@
+import { RssFeedItem } from "./rss";
+import { makeLogger } from "./logger";
+
+const logger = makeLogger("items");
+
 const getOneHourAgo = () => {
   const now = Date.now();
   return now - 60 * 60 * 1000;
@@ -6,9 +11,7 @@ const getOneHourAgo = () => {
 export const getRecentItems = (
   feedManifests: {
     feedJson: {
-      items: {
-        pubDate: string;
-      }[];
+      items: RssFeedItem[];
     };
     userId: string;
     feedUrl: string;
@@ -16,12 +19,15 @@ export const getRecentItems = (
 ) => {
   const oneHourAgo = getOneHourAgo();
 
-  const itemsToSave = feedManifests.map((fm) => {
+  const newContentManifests = feedManifests.map((fm) => {
     const {
       feedJson: { items },
       userId,
       feedUrl,
     } = fm;
+
+    logger("Scanning", feedUrl);
+    logger("Posts from", items.map(({ pubDate }) => pubDate).join(", "));
 
     const fromLastHour = items.filter((item) => {
       const { pubDate } = item;
@@ -38,5 +44,7 @@ export const getRecentItems = (
     };
   });
 
-  return itemsToSave.filter(({ itemsToSave }) => itemsToSave.length > 0);
+  return newContentManifests.filter(
+    ({ itemsToSave }) => itemsToSave.length > 0
+  );
 };

@@ -5,6 +5,9 @@ import dotenv from "dotenv";
 import { getAccessToken } from "./auth";
 import { rss } from "./rss";
 import { getRecentItems } from "./items";
+import { makeLogger } from "./logger";
+
+const logger = makeLogger("index");
 
 dotenv.config();
 
@@ -26,7 +29,7 @@ const makeSaveItemsForUser = ({ access_token }: { access_token: string }) => ({
 
   const uri = `${BACKYARD_ROOT_URI}/api/rss/bulk-save?${params}`;
 
-  console.log(`Saving items at ${uri.slice(0, 50)}`);
+  logger(`Saving items at ${uri.slice(0, 50)}`);
 
   return fetch(uri, {
     method: "POST",
@@ -37,12 +40,16 @@ const makeSaveItemsForUser = ({ access_token }: { access_token: string }) => ({
   }).then((res) => res.json());
 };
 
-cron.schedule("0 * * * *", async () => {
+cron.schedule("*/5 * * * *", async () => {
   const { access_token } = await getAccessToken();
+
+  if (!access_token) {
+    throw new Error("Access token fetch failed. Cron job cannot continue.");
+  }
 
   const uri = `${BACKYARD_ROOT_URI}/api/rss/poll-subs`;
 
-  console.log(`Fetching rss subscriptions at ${uri}`);
+  logger(`Fetching rss subscriptions at ${uri}`);
 
   const { json, before, after, message } = await fetch(uri, {
     method: "GET",
@@ -51,7 +58,7 @@ cron.schedule("0 * * * *", async () => {
     },
   }).then((r) => r.json());
 
-  console.log(message);
+  logger(message);
 
   const feedManifests = await rss({ json, before, after });
 
@@ -65,7 +72,7 @@ cron.schedule("0 * * * *", async () => {
    * If no new items, do nothing
    */
   if (numRecentItems === 0) {
-    console.log("No recent items to save.");
+    logger("No recent items to save.");
     return;
   }
 
@@ -75,12 +82,12 @@ cron.schedule("0 * * * *", async () => {
   const saveItemsForUser = makeSaveItemsForUser({ access_token });
 
   const bulkSaveResult = await Promise.all(
-    recentItemFeeds.map(({ userId, itemsToSave, feedUrl }) =>
-      saveItemsForUser({ userId, itemsToSave, feedUrl })
-    )
+    recentItemFeeds.map(({ userId, itemsToSave, feedUrl }) => {
+      return saveItemsForUser({ userId, itemsToSave, feedUrl });
+    })
   );
 
   void bulkSaveResult;
 
-  console.log(`Sent ${numRecentItems} items to backyard.wtf\n`);
+  logger(`Sent ${numRecentItems} items to backyard.wtf\n`);
 });

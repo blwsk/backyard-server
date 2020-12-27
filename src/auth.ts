@@ -1,7 +1,10 @@
 import unfetch from "isomorphic-unfetch";
 import dotenv from "dotenv";
+import { makeLogger } from "./logger";
 
 dotenv.config();
+
+const logger = makeLogger("auth");
 
 const {
   // current
@@ -22,7 +25,23 @@ const _AUTH_CLIENT_SECRET = AUTH_CLIENT_SECRET || AUTH0_CLIENT_SECRET;
 const _AUTH_AUDIENCE = AUTH_AUDIENCE || AUTH0_AUDIENCE;
 const _AUTH_TOKEN_URI = AUTH_TOKEN_URI || AUTH0_TOKEN_URI;
 
-export const getAccessToken = async () => {
+const ONE_MINUTE_MS = 60 * 1000;
+
+let cachedAccessToken: string | null = null;
+let expiresAt: number | null = null;
+
+export const getAccessToken = async (): Promise<{
+  access_token?: string;
+}> => {
+  if (
+    typeof cachedAccessToken === "string" &&
+    expiresAt &&
+    Date.now() < expiresAt
+  ) {
+    logger("Using cached access token");
+    return { access_token: cachedAccessToken };
+  }
+
   try {
     const options = {
       method: "POST",
@@ -37,11 +56,28 @@ export const getAccessToken = async () => {
 
     const response = await unfetch(<string>_AUTH_TOKEN_URI, options);
 
-    const { access_token, token_type, expires_in } = await response.json();
+    const {
+      access_token,
+      token_type,
+      expires_in,
+    }: {
+      access_token: string;
+      token_type: string;
+      expires_in: number;
+    } = await response.json();
 
-    return { access_token, token_type, expires_in };
+    void token_type; // it's always Bearer
+
+    // cache access token
+    const expiresInMs = expires_in * 1000; // converts seconds to milliseconds
+    cachedAccessToken = access_token;
+    expiresAt = Date.now() + expiresInMs - ONE_MINUTE_MS;
+
+    logger("Using fresh access token");
+
+    return { access_token: cachedAccessToken };
   } catch (e) {
-    console.log("Error while fetching access token", e);
+    logger("Error while fetching access token", e);
     return {};
   }
 };
