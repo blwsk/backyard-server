@@ -5,13 +5,17 @@
   "scripts": {
     "start": "node ./lib2/index.js",
     "build": "yarn && tsc -p .",
-    "dev": "nodemon --watch ./src/**/*.ts --exec \"ts-node\" ./src/index.ts"
+    "dev": "nodemon --watch ./src/**/**/*.ts --exec \"ts-node\" ./src/index.ts"
   },
   "dependencies": {
+    "@types/pg": "^7.14.7",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
+    "express-jwt": "^6.0.0",
     "isomorphic-unfetch": "^3.1.0",
+    "jwks-rsa": "^1.12.1",
     "node-cron": "^2.0.3",
+    "pg": "^8.5.1",
     "rss-parser": "^3.9.0"
   },
   "repository": "https://github.com/blwsk/backyard-server.git",
