@@ -1,16 +1,20 @@
 import express from "express";
-import crypto from "crypto";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const { BACKYARD_SERVER_SECRET, BACKYARD_SERVER_CLIENT_ID } = process.env;
+const { BACKYARD_SERVER_SECRET } = process.env;
 
 export const auth = (
   req: express.Request,
   res: express.Response,
   next: express.NextFunction
 ) => {
+  if (!BACKYARD_SERVER_SECRET) {
+    res.status(500).send("Invalid configuration");
+    return;
+  }
+
   const { authorization, Authorization } = req.headers;
 
   const authorizationHeader = <string>(authorization || Authorization);
@@ -24,23 +28,9 @@ export const auth = (
     error = e;
   }
 
-  if (error) {
-    res.status(400).send("Missing valid Bearer token in Authorization header");
-    return;
-  }
+  const tokenMatchesSecret = BACKYARD_SERVER_SECRET === token;
 
-  if (!BACKYARD_SERVER_SECRET || !BACKYARD_SERVER_CLIENT_ID) {
-    res.status(500).send("Invalid configuration");
-    return;
-  }
-
-  const tokenMatchesHmac =
-    crypto
-      .createHmac("sha256", BACKYARD_SERVER_SECRET)
-      .update(BACKYARD_SERVER_CLIENT_ID)
-      .digest("hex") === token;
-
-  if (!tokenMatchesHmac) {
+  if (error || !tokenMatchesSecret) {
     res.status(401).send("Unauthorized");
     return;
   }
