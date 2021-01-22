@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import express from "express";
+import multer from "multer";
 import { auth } from "./lib/auth";
 import * as item from "./item";
 import * as clip from "./clip";
@@ -46,7 +47,9 @@ app.delete("/api/clip/:clipId", auth, clip.deleteClipById);
 /**
  * EMAIL
  */
-app.post("/api/email", email.receiveInboundEmail);
+const upload = multer();
+
+app.post("/api/email", upload.none(), email.receiveInboundEmail);
 
 export const listen = () => {
   app.listen(PORT, () => {
