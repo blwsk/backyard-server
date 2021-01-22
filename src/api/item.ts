@@ -1,4 +1,6 @@
 import express from "express";
+import DataLoader from "dataloader";
+import format from "pg-format";
 import { client } from "../db";
 
 const PG_MAX_INTEGER = 2147483647;
@@ -31,6 +33,24 @@ export const contentResolver = async (itemId: string) => {
   return row;
 };
 
+export const contentResolverBulk = async (itemIds: readonly string[]) => {
+  const query = format("SELECT * FROM content WHERE item_id IN (%L);", itemIds);
+
+  const { rows } = await client.query(query);
+
+  const result = itemIds.map((itemId) => {
+    const row = rows.find((r) => r.item_id === parseInt(itemId, 10));
+
+    return row || null;
+  });
+
+  return result;
+};
+
+export const contentDataLoader = new DataLoader((keys: readonly string[]) =>
+  contentResolverBulk(keys)
+);
+
 export const originResolver = async (itemId: string) => {
   const queryString = `
   SELECT * FROM origins WHERE item_id = $1;
@@ -45,6 +65,24 @@ export const originResolver = async (itemId: string) => {
   return row;
 };
 
+export const originResolverBulk = async (itemIds: readonly string[]) => {
+  const query = format("SELECT * FROM origins WHERE item_id IN (%L);", itemIds);
+
+  const { rows } = await client.query(query);
+
+  const result = itemIds.map((itemId) => {
+    const row = rows.find((r) => r.item_id === parseInt(itemId, 10));
+
+    return row || null;
+  });
+
+  return result;
+};
+
+export const originDataLoader = new DataLoader((keys: readonly string[]) =>
+  originResolverBulk(keys)
+);
+
 export const clipsForItemResolver = async (itemId: string) => {
   const queryString = `
       SELECT * FROM clips WHERE item_id = $1;
@@ -55,6 +93,31 @@ export const clipsForItemResolver = async (itemId: string) => {
   const { rows } = await client.query(queryString, values);
 
   return rows;
+};
+
+export const itemPageResolver = async ({
+  size = 20,
+  cursor = PG_MAX_INTEGER,
+}: {
+  size?: number;
+  cursor?: number;
+}): Promise<{ results: object[]; next?: number }> => {
+  const queryString = `
+      SELECT * FROM items WHERE id <= $1 ORDER BY id DESC LIMIT $2;
+    `;
+
+  const values = [cursor, size + 1];
+
+  const { rows } = await client.query(queryString, values);
+
+  const results = rows.slice(0, size);
+  const nextRow = rows.length > size ? rows[rows.length - 1] : null;
+  const next = nextRow ? nextRow.id : null;
+
+  return {
+    results,
+    next,
+  };
 };
 
 export const createItem = async (
@@ -163,27 +226,14 @@ export const getItemsPaginated = async (
 ) => {
   const { size: sizeQp, cursor: cursorQp } = req.query;
 
-  const queryString = `
-      SELECT * FROM items WHERE id <= $1 ORDER BY id DESC LIMIT $2;
-    `;
-
   const size = sizeQp ? parseInt(<string>sizeQp, 10) : 20;
 
   const parsedCursor = parseInt(<string>cursorQp, 10);
   const cursor = !isNaN(parsedCursor) ? parsedCursor : PG_MAX_INTEGER;
 
-  const values = [cursor, size + 1];
+  const itemPage = await itemPageResolver({ size, cursor });
 
-  const { rows } = await client.query(queryString, values);
-
-  const results = rows.slice(0, size);
-  const nextRow = rows.length > size ? rows[rows.length - 1] : null;
-  const next = nextRow ? nextRow.id : null;
-
-  res.send({
-    results,
-    next,
-  });
+  res.send(itemPage);
 };
 
 export const deleteItemById = async (

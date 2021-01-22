@@ -1,14 +1,21 @@
 import { ApolloServer, gql } from "apollo-server-express";
+import { GraphQLJSON } from "graphql-type-json";
+import { GraphQLScalarType, Kind } from "graphql";
 import { Application } from "express";
 import {
   itemResolver,
-  contentResolver,
-  originResolver,
   clipsForItemResolver,
+  itemPageResolver,
+  contentDataLoader,
+  originDataLoader,
 } from "./item";
 import { convertKeysToCamelCase } from "../utils";
+import { auth } from "./lib/auth";
 
 const typeDefs = gql`
+  scalar JSON
+  scalar Date
+
   type Content {
     id: ID!
     itemId: ID!
@@ -16,7 +23,7 @@ const typeDefs = gql`
     title: String
     metaTitle: String
     metaDescription: String
-    json: String
+    json: JSON
   }
 
   type Origin {
@@ -31,14 +38,14 @@ const typeDefs = gql`
     id: ID!
     itemId: ID!
     text: String!
-    createdAt: String!
+    createdAt: Date!
     createdBy: String!
   }
 
   type Item {
     id: ID!
     url: String!
-    createdAt: String!
+    createdAt: Date!
     createdBy: String!
     source: String
     legacyId: String
@@ -47,8 +54,14 @@ const typeDefs = gql`
     clips: [Clip]
   }
 
+  type ItemPage {
+    results: [Item]
+    next: ID
+  }
+
   type Query {
     item(id: ID!): Item
+    items(size: Int, cursor: ID): ItemPage
   }
 `;
 
@@ -61,19 +74,36 @@ const resolvers = {
 
       return item ? convertKeysToCamelCase(item) : null;
     },
+
+    async items(
+      parent: any,
+      { size = 20, cursor }: { size: number; cursor?: number }
+    ) {
+      void parent;
+
+      const itemPage = await itemPageResolver({
+        size,
+        cursor,
+      });
+
+      return {
+        results: itemPage.results.map((item) => convertKeysToCamelCase(item)),
+        next: itemPage.next,
+      };
+    },
   },
 
   Item: {
     async content(parent: Partial<{ id: number }>) {
-      const content = await contentResolver(`${parent.id}`);
+      const content = await contentDataLoader.load(`${parent.id}`);
 
       return content ? convertKeysToCamelCase(content) : null;
     },
 
     async origin(parent: Partial<{ id: number }>) {
-      const origin = await originResolver(`${parent.id}`);
+      const content = await originDataLoader.load(`${parent.id}`);
 
-      return origin ? convertKeysToCamelCase(origin) : null;
+      return content ? convertKeysToCamelCase(content) : null;
     },
 
     async clips(parent: Partial<{ id: number }>) {
@@ -84,6 +114,34 @@ const resolvers = {
       );
     },
   },
+
+  JSON: GraphQLJSON,
+
+  Date: new GraphQLScalarType({
+    name: "Date",
+    parseValue(value) {
+      /**
+       * Converts Unix Epoch MS to ISO date string
+       *
+       * Client -> Server -> Database
+       */
+      return new Date(value).toISOString(); // value from the client
+    },
+    serialize(value) {
+      /**
+       * Converts ISO date string to Unix Epoch MS
+       *
+       * Database -> Server -> Client
+       */
+      return value.getTime(); // value sent to the client
+    },
+    parseLiteral(ast) {
+      if (ast.kind === Kind.INT) {
+        return parseInt(ast.value, 10); // ast value is always in string format
+      }
+      return null;
+    },
+  }),
 };
 
 const server = new ApolloServer({
