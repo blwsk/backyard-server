@@ -2,10 +2,10 @@ import cron from "node-cron";
 import fetch from "isomorphic-unfetch";
 import dotenv from "dotenv";
 
-import { getAccessToken } from "./auth";
+import { getAccessToken } from "../lib/auth";
 import { rss } from "./rss";
 import { getRecentItems } from "./items";
-import { makeLogger } from "./logger";
+import { makeLogger } from "../lib/logger";
 
 const logger = makeLogger("index");
 

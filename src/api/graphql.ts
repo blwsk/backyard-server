@@ -4,13 +4,13 @@ import { GraphQLScalarType, Kind } from "graphql";
 import { Application } from "express";
 import {
   itemResolver,
+  legacyItemResolver,
   clipsForItemResolver,
   itemPageResolver,
   contentDataLoader,
   originDataLoader,
 } from "./item";
-import { convertKeysToCamelCase } from "../utils";
-import { auth } from "./lib/auth";
+import { convertKeysToCamelCase } from "../lib/utils";
 
 const typeDefs = gql`
   scalar JSON
@@ -60,6 +60,7 @@ const typeDefs = gql`
   }
 
   type Query {
+    legacyItem(id: ID!): Item
     item(id: ID!): Item
     items(size: Int, cursor: ID): ItemPage
   }
@@ -67,6 +68,14 @@ const typeDefs = gql`
 
 const resolvers = {
   Query: {
+    async legacyItem(parent: any, args: { id: string }) {
+      void parent;
+
+      const item = await legacyItemResolver(args.id);
+
+      return item ? convertKeysToCamelCase(item) : null;
+    },
+
     async item(parent: any, args: { id: number }) {
       void parent;
 

@@ -1,5 +1,5 @@
 import express from "express";
-import { client } from "../db";
+import { client } from "../lib/db";
 
 export const createClip = async (
   req: express.Request,

@@ -1,13 +1,27 @@
 import express from "express";
 import DataLoader from "dataloader";
 import format from "pg-format";
-import { client } from "../db";
+import { client } from "../lib/db";
 
 const PG_MAX_INTEGER = 2147483647;
 
 export const itemResolver = async (itemId: string) => {
   const queryString = `
   SELECT * FROM items WHERE id = $1;
+`;
+
+  const values = [itemId];
+
+  const { rows } = await client.query(queryString, values);
+
+  const row = rows[0];
+
+  return row;
+};
+
+export const legacyItemResolver = async (itemId: string) => {
+  const queryString = `
+  SELECT * FROM items WHERE legacy_id = $1;
 `;
 
   const values = [itemId];

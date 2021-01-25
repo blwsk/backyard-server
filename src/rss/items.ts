@@ -1,5 +1,5 @@
 import { RssFeedItem } from "./rss";
-import { makeLogger } from "./logger";
+import { makeLogger } from "../lib/logger";
 
 const logger = makeLogger("items");
 

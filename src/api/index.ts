@@ -15,6 +15,13 @@ const app = express();
 
 app.use(express.json());
 
+// app.use(
+//   (req: express.Request, res: express.Response, next: express.NextFunction) => {
+//     console.log("hey", req.body);
+//     next();
+//   }
+// );
+
 /**
  * GRAPHQL
  */
