@@ -5,36 +5,31 @@ export const createClip = async (
   req: express.Request,
   res: express.Response
 ) => {
-  const { text, createdBy, createdAt, itemId } = req.body;
+  const { text, createdBy, createdAt, itemId, legacyId } = req.body;
 
   const queryString = `
       INSERT INTO clips (
-          text, created_by, created_at, item_id
+          text, created_by, created_at, item_id, legacy_id
       ) VALUES (
-          $1, $2, $3, $4
+          $1, $2, $3, $4, $5
       ) RETURNING *;
     `;
 
-  const values = [text, createdBy, new Date(createdAt), itemId];
+  const values = [text, createdBy, new Date(createdAt), itemId, legacyId];
 
   let rows = [];
-  let error;
 
   try {
     const result = await client.query(queryString, values);
+
     rows = result.rows;
   } catch (e) {
-    error = e;
-  }
-
-  if (error) {
     res.status(400).send({
-      error: error.detail,
+      error: e.detail,
     });
   }
 
   const row = rows[0];
-
   res.send(row);
 };
 

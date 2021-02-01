@@ -138,17 +138,26 @@ export const createItem = async (
   req: express.Request,
   res: express.Response
 ) => {
-  const { url, createdAt, createdBy, source, content, origin } = req.body;
+  const {
+    url,
+    createdAt,
+    createdBy,
+    source,
+    content,
+    origin,
+    legacyId,
+  } = req.body;
+  console.log({ url, createdAt, createdBy, source, content, origin, legacyId });
 
   const queryString = `
     INSERT INTO items (
-        url, created_by, created_at, source
+        url, created_by, created_at, source, legacy_id
     ) VALUES (
-        $1, $2, $3, $4
+        $1, $2, $3, $4, $5
     ) RETURNING *;
     `;
 
-  const values = [url, createdBy, new Date(createdAt), source];
+  const values = [url, createdBy, new Date(createdAt), source, legacyId];
 
   const { rows } = await client.query(queryString, values);
 

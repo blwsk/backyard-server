@@ -6,6 +6,7 @@ import * as item from "./item";
 import * as clip from "./clip";
 import * as email from "./email";
 import { applyApollo } from "./graphql";
+import unfetch from "isomorphic-unfetch";
 
 dotenv.config();
 
@@ -13,14 +14,14 @@ const { PORT } = process.env;
 
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
 
-// app.use(
-//   (req: express.Request, res: express.Response, next: express.NextFunction) => {
-//     console.log("hey", req.body);
-//     next();
-//   }
-// );
+app.use(
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.log(req.method, req.path, req.body);
+    next();
+  }
+);
 
 /**
  * GRAPHQL
