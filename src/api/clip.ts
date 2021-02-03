@@ -1,5 +1,6 @@
 import express from "express";
 import { client } from "../lib/db";
+import format from "pg-format";
 
 export const createClip = async (
   req: express.Request,

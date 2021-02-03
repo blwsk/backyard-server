@@ -284,6 +284,27 @@ export const deleteItemById = async (
   });
 };
 
+export const deleteItemsBulk = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const legacyItemIds = req.body;
+
+  const query = format(
+    "DELETE FROM items WHERE legacy_id IN (%L) RETURNING *;",
+    legacyItemIds
+  );
+
+  const { rows } = await client.query(query);
+
+  console.log(rows);
+
+  res.send({
+    message: `Items with the provided ids have been deleted.`,
+    deletedLegacyItemIds: rows.map((row) => row.legacy_id),
+  });
+};
+
 export const getClipsForItem = async (
   req: express.Request,
   res: express.Response

@@ -6,7 +6,6 @@ import * as item from "./item";
 import * as clip from "./clip";
 import * as email from "./email";
 import { applyApollo } from "./graphql";
-import unfetch from "isomorphic-unfetch";
 
 dotenv.config();
 
@@ -40,6 +39,8 @@ app.get("/api/item/:itemId", auth, item.getItemById);
 app.get("/api/items", auth, item.getItemsPaginated);
 
 app.delete("/api/item/:itemId", auth, item.deleteItemById);
+
+app.delete("/api/items", auth, item.deleteItemsBulk);
 
 app.get("/api/item/:itemId/clips", auth, item.getClipsForItem);
 
