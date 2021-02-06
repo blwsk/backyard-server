@@ -9,6 +9,7 @@ import {
   itemPageResolver,
   contentDataLoader,
   originDataLoader,
+  SortOrder,
 } from "./item";
 import { convertKeysToCamelCase } from "../lib/utils";
 
@@ -59,10 +60,20 @@ const typeDefs = gql`
     next: ID
   }
 
+  enum SortOrder {
+    ASC
+    DESC
+  }
+
   type Query {
     legacyItem(id: ID!): Item
     item(id: ID!): Item
-    items(size: Int, cursor: ID): ItemPage
+    items(
+      size: Int
+      cursor: ID
+      userId: String!
+      sortOrder: SortOrder!
+    ): ItemPage
   }
 `;
 
@@ -86,13 +97,20 @@ const resolvers = {
 
     async items(
       parent: any,
-      { size = 20, cursor }: { size: number; cursor?: number }
+      {
+        size = 20,
+        cursor,
+        userId,
+        sortOrder,
+      }: { size: number; cursor?: number; userId: string; sortOrder: SortOrder }
     ) {
       void parent;
 
       const itemPage = await itemPageResolver({
         size,
         cursor,
+        userId,
+        sortOrder,
       });
 
       return {

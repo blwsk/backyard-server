@@ -5,6 +5,9 @@ import { client } from "../lib/db";
 
 const PG_MAX_INTEGER = 2147483647;
 
+export type SortOrder = "ASC" | "DESC";
+export const isSortOrder = (str: unknown) => str === "ASC" || str === "DESC";
+
 export const itemResolver = async (itemId: string) => {
   const queryString = `
   SELECT * FROM items WHERE id = $1;
@@ -112,15 +115,38 @@ export const clipsForItemResolver = async (itemId: string) => {
 export const itemPageResolver = async ({
   size = 20,
   cursor = PG_MAX_INTEGER,
+  userId,
+  sortOrder,
 }: {
   size?: number;
   cursor?: number;
+  userId: string;
+  sortOrder: SortOrder;
 }): Promise<{ results: object[]; next?: number }> => {
-  const queryString = `
-      SELECT * FROM items WHERE id <= $1 ORDER BY id DESC LIMIT $2;
-    `;
+  if (!userId) {
+    throw new Error("itemPageResolver requires a userId argument");
+  }
+  if (!isSortOrder(sortOrder)) {
+    throw new Error("itemPageResolver requires a sortOrder argument");
+  }
 
-  const values = [cursor, size + 1];
+  let queryString;
+  switch (sortOrder) {
+    case "ASC":
+      queryString = `
+      SELECT * FROM items WHERE id <= $1 AND created_by = $2 ORDER BY id ASC LIMIT $3;
+    `;
+      break;
+
+    case "DESC":
+    default:
+      queryString = `
+      SELECT * FROM items WHERE id <= $1 AND created_by = $2 ORDER BY id DESC LIMIT $3;
+    `;
+      break;
+  }
+
+  const values = [cursor, userId, size + 1];
 
   const { rows } = await client.query(queryString, values);
 
@@ -247,14 +273,24 @@ export const getItemsPaginated = async (
   req: express.Request,
   res: express.Response
 ) => {
-  const { size: sizeQp, cursor: cursorQp } = req.query;
+  const {
+    size: sizeQp,
+    cursor: cursorQp,
+    userId: userIdQp,
+    sortOrderQp,
+  } = req.query;
 
   const size = sizeQp ? parseInt(<string>sizeQp, 10) : 20;
 
   const parsedCursor = parseInt(<string>cursorQp, 10);
   const cursor = !isNaN(parsedCursor) ? parsedCursor : PG_MAX_INTEGER;
 
-  const itemPage = await itemPageResolver({ size, cursor });
+  const itemPage = await itemPageResolver({
+    size,
+    cursor,
+    userId: userIdQp as string,
+    sortOrder: sortOrderQp as SortOrder,
+  });
 
   res.send(itemPage);
 };
