@@ -1,6 +1,55 @@
 import express from "express";
 import { client } from "../lib/db";
 import format from "pg-format";
+import { PG_MAX_INTEGER, SortOrder, isSortOrder } from "./lib/constants";
+
+export const clipPageResolver = async ({
+  size = 20,
+  cursor = PG_MAX_INTEGER,
+  userId,
+  sortOrder,
+}: {
+  size?: number;
+  cursor?: number;
+  userId: string;
+  sortOrder: SortOrder;
+}): Promise<{ results: object[]; next?: number }> => {
+  if (!userId) {
+    throw new Error("clipPageResolver requires a userId argument");
+  }
+  if (!isSortOrder(sortOrder)) {
+    throw new Error("clipPageResolver requires a sortOrder argument");
+  }
+
+  let queryString;
+  switch (sortOrder) {
+    case "ASC":
+      queryString = `
+      SELECT * FROM clips WHERE id <= $1 AND created_by = $2 ORDER BY id ASC LIMIT $3;
+    `;
+      break;
+
+    case "DESC":
+    default:
+      queryString = `
+      SELECT * FROM clips WHERE id <= $1 AND created_by = $2 ORDER BY id DESC LIMIT $3;
+    `;
+      break;
+  }
+
+  const values = [cursor, userId, size + 1];
+
+  const { rows } = await client.query(queryString, values);
+
+  const results = rows.slice(0, size);
+  const nextRow = rows.length > size ? rows[rows.length - 1] : null;
+  const next = nextRow ? nextRow.id : null;
+
+  return {
+    results,
+    next,
+  };
+};
 
 export const createClip = async (
   req: express.Request,

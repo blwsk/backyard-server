@@ -9,9 +9,10 @@ import {
   itemPageResolver,
   contentDataLoader,
   originDataLoader,
-  SortOrder,
 } from "./item";
+import { clipPageResolver } from "./clip";
 import { convertKeysToCamelCase } from "../lib/utils";
+import { SortOrder } from "./lib/constants";
 
 const typeDefs = gql`
   scalar JSON
@@ -60,6 +61,11 @@ const typeDefs = gql`
     next: ID
   }
 
+  type ClipPage {
+    results: [Clip]
+    next: ID
+  }
+
   enum SortOrder {
     ASC
     DESC
@@ -74,6 +80,12 @@ const typeDefs = gql`
       userId: String!
       sortOrder: SortOrder!
     ): ItemPage
+    clips(
+      size: Int
+      cursor: ID
+      userId: String!
+      sortOrder: SortOrder!
+    ): ClipPage
   }
 `;
 
@@ -116,6 +128,30 @@ const resolvers = {
       return {
         results: itemPage.results.map((item) => convertKeysToCamelCase(item)),
         next: itemPage.next,
+      };
+    },
+
+    async clips(
+      parent: any,
+      {
+        size = 20,
+        cursor,
+        userId,
+        sortOrder,
+      }: { size: number; cursor?: number; userId: string; sortOrder: SortOrder }
+    ) {
+      void parent;
+
+      const clipPage = await clipPageResolver({
+        size,
+        cursor,
+        userId,
+        sortOrder,
+      });
+
+      return {
+        results: clipPage.results.map((clip) => convertKeysToCamelCase(clip)),
+        next: clipPage.next,
       };
     },
   },

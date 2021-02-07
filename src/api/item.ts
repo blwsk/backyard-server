@@ -2,11 +2,7 @@ import express from "express";
 import DataLoader from "dataloader";
 import format from "pg-format";
 import { client } from "../lib/db";
-
-const PG_MAX_INTEGER = 2147483647;
-
-export type SortOrder = "ASC" | "DESC";
-export const isSortOrder = (str: unknown) => str === "ASC" || str === "DESC";
+import { PG_MAX_INTEGER, SortOrder, isSortOrder } from "./lib/constants";
 
 export const itemResolver = async (itemId: string) => {
   const queryString = `
