@@ -3,6 +3,15 @@ import { GraphQLJSON } from "graphql-type-json";
 import { GraphQLScalarType, Kind } from "graphql";
 import { Application } from "express";
 import {
+  userMetadataResolver,
+  rssSubscriptionsForUserResolver,
+  createRssSubscriptionResolver,
+  deleteRssSubscriptionResolver,
+  createEmailIngestAddressResolver,
+  deleteEmailIngestAddressResolver,
+  createPhoneNumberResolver,
+} from "./userMeta";
+import {
   itemResolver,
   legacyItemResolver,
   clipsForItemResolver,
@@ -17,6 +26,20 @@ import { SortOrder } from "./lib/constants";
 const typeDefs = gql`
   scalar JSON
   scalar Date
+
+  type RssSubscription {
+    id: ID!
+    createdAt: Date!
+    createdBy: String!
+    feedUrl: String!
+  }
+
+  type UserMetadata {
+    userId: String!
+    phoneNumber: String
+    emailIngestAddress: String
+    rssSubscriptions: [RssSubscription]
+  }
 
   type Content {
     id: ID!
@@ -71,7 +94,12 @@ const typeDefs = gql`
     DESC
   }
 
+  type DeleteResponse {
+    id: ID
+  }
+
   type Query {
+    userMetadata(userId: String!): UserMetadata
     legacyItem(id: ID!): Item
     item(id: ID!): Item
     items(
@@ -87,10 +115,29 @@ const typeDefs = gql`
       sortOrder: SortOrder!
     ): ClipPage
   }
+
+  type Mutation {
+    createRssSubscription(userId: String!, feedUrl: String!): RssSubscription!
+    deleteRssSubscription(userId: String!, feedId: String!): DeleteResponse!
+    createEmailIngestAddress(
+      userId: String!
+      emailIngestAddress: String!
+    ): UserMetadata!
+    deleteEmailIngestAddress(userId: String!): UserMetadata!
+    createPhoneNumber(userId: String!, phoneNumber: String!): UserMetadata!
+  }
 `;
 
 const resolvers = {
   Query: {
+    async userMetadata(parent: any, args: { userId: string }) {
+      void parent;
+
+      const userMetadataObj = await userMetadataResolver(args.userId);
+
+      return userMetadataObj ? convertKeysToCamelCase(userMetadataObj) : null;
+    },
+
     async legacyItem(parent: any, args: { id: string }) {
       void parent;
 
@@ -153,6 +200,100 @@ const resolvers = {
         results: clipPage.results.map((clip) => convertKeysToCamelCase(clip)),
         next: clipPage.next,
       };
+    },
+  },
+
+  Mutation: {
+    async createRssSubscription(
+      parent: any,
+      args: { userId: string; feedUrl: string }
+    ) {
+      void parent;
+
+      const { userId, feedUrl } = args;
+
+      const rssSubscription = await createRssSubscriptionResolver({
+        userId,
+        feedUrl,
+      });
+
+      return convertKeysToCamelCase(rssSubscription);
+    },
+
+    async deleteRssSubscription(
+      parent: any,
+      args: { userId: string; feedId: string }
+    ) {
+      void parent;
+
+      const { userId, feedId } = args;
+
+      const deletedRssSubscription = await deleteRssSubscriptionResolver({
+        userId,
+        feedId,
+      });
+
+      void deletedRssSubscription;
+
+      return {
+        id: feedId,
+      };
+    },
+
+    async createEmailIngestAddress(
+      parent: any,
+      args: { userId: string; emailIngestAddress: string }
+    ) {
+      void parent;
+
+      const { userId, emailIngestAddress } = args;
+
+      const userMetadata = await createEmailIngestAddressResolver({
+        userId,
+        emailIngestAddress,
+      });
+
+      return convertKeysToCamelCase(userMetadata);
+    },
+
+    async deleteEmailIngestAddress(parent: any, args: { userId: string }) {
+      void parent;
+
+      const { userId } = args;
+
+      const userMetadata = await deleteEmailIngestAddressResolver({
+        userId,
+      });
+
+      return convertKeysToCamelCase(userMetadata);
+    },
+
+    async createPhoneNumber(
+      parent: any,
+      args: { userId: string; phoneNumber: string }
+    ) {
+      void parent;
+
+      const { userId, phoneNumber } = args;
+
+      const userMetadata = await createPhoneNumberResolver({
+        userId,
+        phoneNumber,
+      });
+
+      return convertKeysToCamelCase(userMetadata);
+    },
+  },
+
+  UserMetadata: {
+    async rssSubscriptions(parent: Partial<{ userId: string }>) {
+      const rssSubscriptions = await rssSubscriptionsForUserResolver(
+        `${parent.userId}`
+      );
+
+      return rssSubscriptions.map((rssSub: { [key: string]: any }) =>
+        convertKeysToCamelCase(rssSub)
+      );
     },
   },
 
