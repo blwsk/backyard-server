@@ -1,6 +1,5 @@
 import express from "express";
 import { client } from "../lib/db";
-import format from "pg-format";
 import { PG_MAX_INTEGER, SortOrder, isSortOrder } from "./lib/constants";
 
 export const clipPageResolver = async ({

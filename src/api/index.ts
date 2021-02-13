@@ -6,6 +6,7 @@ import * as item from "./item";
 import * as clip from "./clip";
 import * as email from "./email";
 import { applyApollo } from "./graphql";
+import { verifyPhoneNumber, confirmPhoneNumber } from "./sms";
 
 dotenv.config();
 
@@ -59,6 +60,12 @@ app.delete("/api/clip/:clipId", auth, clip.deleteClipById);
 const upload = multer();
 
 app.post("/api/email", upload.none(), email.receiveInboundEmail);
+
+/**
+ * SMS
+ */
+app.put("/api/sms/verify", auth, verifyPhoneNumber);
+app.put("/api/sms/confirm", auth, confirmPhoneNumber);
 
 export const listen = () => {
   app.listen(PORT, () => {
