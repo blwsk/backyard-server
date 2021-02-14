@@ -160,3 +160,39 @@ export const createPhoneNumberResolver = async ({
 
   return row;
 };
+
+export const deletePhoneNumberResolver = async ({
+  userId,
+}: {
+  userId: string;
+}) => {
+  const userMetadata = await userMetadataResolver(userId);
+
+  const phoneNumber = null;
+
+  if (userMetadata) {
+    const queryString = `
+      UPDATE user_metadata SET phone_number = $1 WHERE user_id = $2 RETURNING *;
+    `;
+
+    const values = [phoneNumber, userId];
+
+    const { rows } = await client.query(queryString, values);
+
+    const row = rows[0];
+
+    return row;
+  }
+
+  const queryString = `
+    INSERT INTO user_metadata (user_id, phone_number) VALUES ($1, $2) RETURNING *;
+  `;
+
+  const values = [userId, phoneNumber];
+
+  const { rows } = await client.query(queryString, values);
+
+  const row = rows[0];
+
+  return row;
+};

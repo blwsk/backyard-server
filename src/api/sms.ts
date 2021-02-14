@@ -83,7 +83,8 @@ export const verifyPhoneNumber = async (
       res.status(400).send(err);
       return;
     }
-    res.status(200).send(result);
+
+    res.status(200).send(smsVerifierObj);
   });
 };
 
@@ -111,20 +112,26 @@ export const confirmPhoneNumber = async (
     try {
       json = JSON.parse(result);
     } catch (parseError) {
-      res.status(404).send();
+      res.status(400).send();
       return;
     }
 
     const verifier = setSmsVerifier(json as SmsVerifier);
 
     if (verifier.expiresAt && verifier.expiresAt < Date.now() - TIME_LIMIT) {
-      res.status(400).send("Expired");
+      res.status(400).send({
+        message: "Expired",
+        match: false,
+      });
       return;
     }
 
     const match: boolean =
       typeof verifier.pin === "string" && verifier.pin === pin;
 
-    res.status(200).send(match);
+    res.status(200).send({
+      message: match ? "Success" : "Pins do not match",
+      match,
+    });
   });
 };

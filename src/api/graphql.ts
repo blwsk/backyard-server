@@ -10,6 +10,7 @@ import {
   createEmailIngestAddressResolver,
   deleteEmailIngestAddressResolver,
   createPhoneNumberResolver,
+  deletePhoneNumberResolver,
 } from "./userMeta";
 import {
   itemResolver,
@@ -125,6 +126,7 @@ const typeDefs = gql`
     ): UserMetadata!
     deleteEmailIngestAddress(userId: String!): UserMetadata!
     createPhoneNumber(userId: String!, phoneNumber: String!): UserMetadata!
+    deletePhoneNumber(userId: String!): UserMetadata!
   }
 `;
 
@@ -279,6 +281,18 @@ const resolvers = {
       const userMetadata = await createPhoneNumberResolver({
         userId,
         phoneNumber,
+      });
+
+      return convertKeysToCamelCase(userMetadata);
+    },
+
+    async deletePhoneNumber(parent: any, args: { userId: string }) {
+      void parent;
+
+      const { userId } = args;
+
+      const userMetadata = await deletePhoneNumberResolver({
+        userId,
       });
 
       return convertKeysToCamelCase(userMetadata);
