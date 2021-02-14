@@ -7,6 +7,7 @@ import * as clip from "./clip";
 import * as email from "./email";
 import { applyApollo } from "./graphql";
 import { verifyPhoneNumber, confirmPhoneNumber } from "./sms";
+import { getUserMetadataByPhoneNumber } from "./userMeta";
 
 dotenv.config();
 
@@ -66,6 +67,11 @@ app.post("/api/email", upload.none(), email.receiveInboundEmail);
  */
 app.put("/api/sms/verify", auth, verifyPhoneNumber);
 app.put("/api/sms/confirm", auth, confirmPhoneNumber);
+
+/**
+ * User Metadata
+ */
+app.get("/api/user/phone", auth, getUserMetadataByPhoneNumber);
 
 export const listen = () => {
   app.listen(PORT, () => {

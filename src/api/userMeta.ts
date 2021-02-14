@@ -1,4 +1,6 @@
+import express from "express";
 import { client } from "../lib/db";
+import { convertKeysToCamelCase } from "../lib/utils";
 
 export const userMetadataResolver = async (userId: string) => {
   const queryString = `
@@ -195,4 +197,45 @@ export const deletePhoneNumberResolver = async ({
   const row = rows[0];
 
   return row;
+};
+
+export const userMetadataByPhoneNumberResolver = async ({
+  phoneNumber,
+}: {
+  phoneNumber?: string;
+}) => {
+  if (!phoneNumber) {
+    throw new Error(
+      "userMetadataByPhoneNumberResolver requires a phoneNumber arg"
+    );
+  }
+
+  const queryString = `SELECT * FROM user_metadata WHERE phone_number = $1;`;
+  const values = [phoneNumber];
+
+  const { rows } = await client.query(queryString, values);
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return rows[0];
+};
+
+export const getUserMetadataByPhoneNumber = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const { phoneNumber } = req.query;
+
+  const userMetadata = await userMetadataByPhoneNumberResolver({
+    phoneNumber: phoneNumber as string,
+  });
+
+  if (!userMetadata) {
+    res.status(404).send();
+    return;
+  }
+
+  res.status(200).send(convertKeysToCamelCase(userMetadata));
 };
