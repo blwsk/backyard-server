@@ -1,10 +1,22 @@
 import express from "express";
+import { client } from "../lib/db";
 
 export const receiveInboundEmail = async (
   req: express.Request,
   res: express.Response
 ) => {
-  console.log(req.body);
+  const { rows } = await client.query(
+    `
+      INSERT INTO emails (
+        json
+      ) VALUES (
+        $1
+      ) RETURNING *;
+      `,
+    [req.body]
+  );
 
-  res.status(200).send({});
+  console.log(rows);
+
+  res.status(200).send();
 };
