@@ -123,7 +123,7 @@ const typeDefs = gql`
     createEmailIngestAddress(
       userId: String!
       emailIngestAddress: String!
-    ): UserMetadata!
+    ): UserMetadata
     deleteEmailIngestAddress(userId: String!): UserMetadata!
     createPhoneNumber(userId: String!, phoneNumber: String!): UserMetadata!
     deletePhoneNumber(userId: String!): UserMetadata!

@@ -72,6 +72,21 @@ export const deleteRssSubscriptionResolver = async ({
   return row;
 };
 
+export const isEmailIngestAddressTaken = async (
+  emailIngestAddress: string
+): Promise<boolean> => {
+  const {
+    rows,
+  } = await client.query(
+    `SELECT email_ingest_address FROM user_metadata WHERE email_ingest_address = $1;`,
+    [emailIngestAddress]
+  );
+
+  const isTaken = rows.length > 0;
+
+  return isTaken;
+};
+
 export const createEmailIngestAddressResolver = async ({
   userId,
   emailIngestAddress,
@@ -79,6 +94,12 @@ export const createEmailIngestAddressResolver = async ({
   userId: string;
   emailIngestAddress: string;
 }) => {
+  const alreadyTaken = await isEmailIngestAddressTaken(emailIngestAddress);
+
+  if (alreadyTaken) {
+    throw new Error("Email ingest address is already taken");
+  }
+
   const userMetadata = await userMetadataResolver(userId);
 
   if (userMetadata) {
