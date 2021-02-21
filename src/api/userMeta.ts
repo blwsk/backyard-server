@@ -220,6 +220,29 @@ export const deletePhoneNumberResolver = async ({
   return row;
 };
 
+export const userMetadataByEmailIngestAddressResolver = async ({
+  emailIngestAddress,
+}: {
+  emailIngestAddress?: string;
+}) => {
+  if (!emailIngestAddress) {
+    throw new Error(
+      "userMetadataByEmailIngestAddressResolver requires a emailIngestAddress arg"
+    );
+  }
+
+  const queryString = `SELECT * FROM user_metadata WHERE email_ingest_address = $1;`;
+  const values = [emailIngestAddress];
+
+  const { rows } = await client.query(queryString, values);
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return rows[0];
+};
+
 export const userMetadataByPhoneNumberResolver = async ({
   phoneNumber,
 }: {

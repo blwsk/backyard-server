@@ -3,6 +3,10 @@ import DataLoader from "dataloader";
 import format from "pg-format";
 import { client } from "../lib/db";
 import { PG_MAX_INTEGER, SortOrder, isSortOrder } from "./lib/constants";
+import { makeLogger } from "../lib/logger";
+import { convertKeysToCamelCase } from "../lib/utils";
+
+const log = makeLogger("api::item");
 
 export const itemResolver = async (itemId: string) => {
   const queryString = `
@@ -156,21 +160,49 @@ export const itemPageResolver = async ({
   };
 };
 
-export const createItem = async (
-  req: express.Request,
-  res: express.Response
-) => {
-  const {
-    url,
-    createdAt,
-    createdBy,
-    source,
-    content,
-    origin,
-    legacyId,
-  } = req.body;
-  console.log({ url, createdAt, createdBy, source, content, origin, legacyId });
+export const EMAIL = "email";
+export const SMS = "sms";
+export const MANUAL = "manual";
+export const RSS = "rss";
 
+export type Source = "email" | "sms" | "manual" | "rss";
+
+export interface Content {
+  body?: string;
+  title?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  json?: object;
+}
+
+export interface Origin {
+  emailBody?: string;
+  rssEntryContent?: string;
+  rssFeedUrl?: string;
+}
+
+export interface Item {
+  url?: string;
+  createdBy: string;
+  createdAt: number;
+  content?: Content;
+  source?: Source;
+  origin?: Origin;
+}
+
+export interface ItemWithLegacyId extends Item {
+  legacyId?: string;
+}
+
+export const createItemResolver = async ({
+  url,
+  createdBy,
+  createdAt,
+  source,
+  legacyId,
+  content,
+  origin,
+}: ItemWithLegacyId) => {
   const queryString = `
     INSERT INTO items (
         url, created_by, created_at, source, legacy_id
@@ -187,7 +219,7 @@ export const createItem = async (
 
   const generatedItemId = row.id;
 
-  const createContentRecordMaybe = async () => {
+  const createContentRecord = async () => {
     if (!content) {
       return null;
     }
@@ -214,7 +246,7 @@ export const createItem = async (
     return contentRows[0] || null;
   };
 
-  const createOriginRecordMaybe = async () => {
+  const createOriginRecord = async () => {
     if (!origin) {
       return null;
     }
@@ -239,15 +271,52 @@ export const createItem = async (
     return originRows[0] || null;
   };
 
-  const contentMaybe = await createContentRecordMaybe();
+  const contentRecord = await createContentRecord();
 
-  const originMaybe = await createOriginRecordMaybe();
+  const originRecord = await createOriginRecord();
 
-  res.send({
+  return {
     item: row,
-    content: contentMaybe,
-    origin: originMaybe,
+    content: convertKeysToCamelCase(contentRecord),
+    origin: convertKeysToCamelCase(originRecord),
+  };
+};
+
+export const createItem = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const {
+    url,
+    createdAt,
+    createdBy,
+    source,
+    content,
+    origin,
+    legacyId,
+  } = req.body;
+
+  log("createItem", {
+    url,
+    createdAt,
+    createdBy,
+    source,
+    content,
+    origin,
+    legacyId,
   });
+
+  const itemRecord = await createItemResolver({
+    url,
+    createdAt,
+    createdBy,
+    source,
+    content,
+    origin,
+    legacyId,
+  });
+
+  res.send(itemRecord);
 };
 
 export const getItemById = async (
