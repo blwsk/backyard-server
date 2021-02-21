@@ -191,7 +191,7 @@ export interface Item {
 }
 
 export interface ItemWithLegacyId extends Item {
-  legacyId?: string;
+  legacyId?: bigint;
 }
 
 export const createItemResolver = async ({

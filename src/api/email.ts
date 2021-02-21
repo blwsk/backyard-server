@@ -7,12 +7,8 @@ import { userMetadataByEmailIngestAddressResolver } from "./userMeta";
 
 const log = makeLogger("api::email");
 
-const generateUuid = (): string => {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    var r = (Math.random() * 16) | 0,
-      v = c == "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+const generateBigInt = (): bigint => {
+  return process.hrtime.bigint();
 };
 
 export const receiveInboundEmail = async (
@@ -51,7 +47,7 @@ export const receiveInboundEmail = async (
 
   const toEmailAddress = emailBody.to;
 
-  const uuid = generateUuid();
+  const legacyId = generateBigInt();
 
   const createdBy = await userMetadataByEmailIngestAddressResolver({
     emailIngestAddress: toEmailAddress,
@@ -61,7 +57,7 @@ export const receiveInboundEmail = async (
     createdBy,
     createdAt: Date.now(),
     source: "email",
-    legacyId: uuid,
+    legacyId,
     content: {
       json: emailBody,
     },
