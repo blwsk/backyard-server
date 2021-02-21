@@ -49,12 +49,24 @@ export const receiveInboundEmail = async (
 
   const legacyId = generateBigInt();
 
-  const createdBy = await userMetadataByEmailIngestAddressResolver({
+  const userMetadataMaybe = await userMetadataByEmailIngestAddressResolver({
     emailIngestAddress: toEmailAddress,
   });
 
+  if (!userMetadataMaybe) {
+    log(
+      "receiveInboundEmail::noUserDataForEmail",
+      `emailIngestAddress: ${toEmailAddress}`
+    );
+
+    res.status(200).send();
+    return;
+  }
+
+  const userMetadata = convertKeysToCamelCase(userMetadataMaybe);
+
   const item = await createItemResolver({
-    createdBy,
+    createdBy: userMetadata.userId,
     createdAt: Date.now(),
     source: "email",
     legacyId,
