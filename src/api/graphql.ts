@@ -70,7 +70,7 @@ const typeDefs = gql`
 
   type Item {
     id: ID!
-    url: String!
+    url: String
     createdAt: Date!
     createdBy: String!
     source: String
