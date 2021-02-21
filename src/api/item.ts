@@ -277,8 +277,8 @@ export const createItemResolver = async ({
 
   return {
     item: row,
-    content: convertKeysToCamelCase(contentRecord),
-    origin: convertKeysToCamelCase(originRecord),
+    content: contentRecord ? convertKeysToCamelCase(contentRecord) : null,
+    origin: originRecord ? convertKeysToCamelCase(originRecord) : null,
   };
 };
 
