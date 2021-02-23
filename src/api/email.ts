@@ -42,23 +42,46 @@ export const receiveInboundEmail = async (
   const emailBody = convertKeysToCamelCase(rows[0].json) as {
     to: string;
     from: string;
+    envelope: string;
     // others???
   };
 
-  const toEmailAddress = emailBody.to;
+  let parsedEnvelope: { to: string[]; from: string };
+  try {
+    parsedEnvelope = JSON.parse(emailBody.envelope);
+  } catch (error) {
+    log(
+      "receiveInboundEmail::errorParsingEnvelope",
+      `envelope: ${emailBody.envelope}`
+    );
+    res.status(200).send();
+    return;
+  }
+
+  const inboundEmailAddress = parsedEnvelope.to.find((toAddress) =>
+    toAddress.indexOf("@save.backyard.wtf")
+  );
+
+  if (!inboundEmailAddress) {
+    log(
+      "receiveInboundEmail::noInboundEmailAddress",
+      `envelope: ${emailBody.envelope}`
+    );
+    res.status(200).send();
+    return;
+  }
 
   const legacyId = generateBigInt();
 
   const userMetadataMaybe = await userMetadataByEmailIngestAddressResolver({
-    emailIngestAddress: toEmailAddress,
+    emailIngestAddress: inboundEmailAddress,
   });
 
   if (!userMetadataMaybe) {
     log(
       "receiveInboundEmail::noUserDataForEmail",
-      `emailIngestAddress: ${toEmailAddress}`
+      `emailIngestAddress: ${inboundEmailAddress}`
     );
-
     res.status(200).send();
     return;
   }
