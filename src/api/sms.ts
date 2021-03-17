@@ -1,7 +1,6 @@
 import express from "express";
-import redis, { Callback } from "redis";
+import redis from "redis";
 import dotenv from "dotenv";
-import { promisify } from "util";
 
 dotenv.config();
 
@@ -10,10 +9,6 @@ const { REDIS_URL } = process.env;
 const client = redis.createClient({
   url: REDIS_URL,
 });
-
-const set = promisify<string, string, Callback<"OK">>(
-  (key: string, value: string, cb: Callback<"OK">) => client.set(key, value, cb)
-);
 
 client.on("error", (error) => {
   console.error(error);

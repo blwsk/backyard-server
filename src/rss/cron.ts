@@ -6,6 +6,8 @@ import { getAccessToken } from "../lib/auth";
 import { rss } from "./rss";
 import { getRecentItems } from "./items";
 import { makeLogger } from "../lib/logger";
+import { allRssSubscriptionsResolver } from "../api/rss";
+import { convertKeysToCamelCase } from "../lib/utils";
 
 const logger = makeLogger("index");
 
@@ -41,27 +43,31 @@ const makeSaveItemsForUser = ({ access_token }: { access_token: string }) => ({
 };
 
 export const setupCron = () => {
-  return cron.schedule("0 * * * *", async () => {
+  return cron.schedule("* * * * *", async () => {
     const { access_token } = await getAccessToken();
 
     if (!access_token) {
       throw new Error("Access token fetch failed. Cron job cannot continue.");
     }
 
-    const uri = `${BACKYARD_ROOT_URI}/api/rss/poll-subs`;
+    logger("Fetching rss subscriptions via resolver");
 
-    logger(`Fetching rss subscriptions at ${uri}`);
+    const allRssSubscriptions = await allRssSubscriptionsResolver();
 
-    const { json, before, after, message } = await fetch(uri, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
-    }).then((r) => r.json());
+    const allRssSubscriptionsCamelCase = allRssSubscriptions.map(
+      convertKeysToCamelCase
+    );
 
-    logger(message);
+    const json = allRssSubscriptionsCamelCase.map((item) => {
+      const { feedUrl, userId } = item;
 
-    const feedManifests = await rss({ json, before, after });
+      return {
+        feedUrl,
+        userId,
+      };
+    });
+
+    const feedManifests = await rss({ json });
 
     const recentItemFeeds = getRecentItems(feedManifests);
 
