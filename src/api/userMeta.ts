@@ -243,6 +243,24 @@ export const userMetadataByEmailIngestAddressResolver = async ({
   return rows[0];
 };
 
+export const getUserMetadataByEmailIngestAddress = async (
+  req: express.Request,
+  res: express.Response
+) => {
+  const { emailIngestAddress } = req.query;
+
+  const userMetadata = await userMetadataByEmailIngestAddressResolver({
+    emailIngestAddress: emailIngestAddress as string,
+  });
+
+  if (!userMetadata) {
+    res.status(404).send();
+    return;
+  }
+
+  res.status(200).send(convertKeysToCamelCase(userMetadata));
+};
+
 export const userMetadataByPhoneNumberResolver = async ({
   phoneNumber,
 }: {
