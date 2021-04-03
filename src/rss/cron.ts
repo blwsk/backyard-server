@@ -8,6 +8,7 @@ import { getRecentItems } from "./items";
 import { makeLogger } from "../lib/logger";
 import { allRssSubscriptionsResolver } from "../api/rss";
 import { convertKeysToCamelCase } from "../lib/utils";
+import { create } from "domain";
 
 const logger = makeLogger("index");
 
@@ -43,7 +44,7 @@ const makeSaveItemsForUser = ({ access_token }: { access_token: string }) => ({
 };
 
 export const setupCron = () => {
-  return cron.schedule("0 * * * *", async () => {
+  return cron.schedule("* * * * *", async () => {
     const { access_token } = await getAccessToken();
 
     if (!access_token) {
@@ -59,11 +60,11 @@ export const setupCron = () => {
     );
 
     const json = allRssSubscriptionsCamelCase.map((item) => {
-      const { feedUrl, userId } = item;
+      const { feedUrl, createdBy } = item;
 
       return {
         feedUrl,
-        userId,
+        userId: createdBy,
       };
     });
 
