@@ -44,7 +44,7 @@ const makeSaveItemsForUser = ({ access_token }: { access_token: string }) => ({
 };
 
 export const setupCron = () => {
-  return cron.schedule("* * * * *", async () => {
+  return cron.schedule("0 * * * *", async () => {
     const { access_token } = await getAccessToken();
 
     if (!access_token) {
