@@ -8,7 +8,6 @@ import { getRecentItems } from "./items";
 import { makeLogger } from "../lib/logger";
 import { allRssSubscriptionsResolver } from "../api/rss";
 import { convertKeysToCamelCase } from "../lib/utils";
-import { create } from "domain";
 
 const logger = makeLogger("index");
 
