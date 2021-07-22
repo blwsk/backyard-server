@@ -1,8 +1,5 @@
 import express from "express";
 import redis from "redis";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const { REDIS_URL } = process.env;
 

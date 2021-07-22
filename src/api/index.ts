@@ -1,4 +1,3 @@
-import dotenv from "dotenv";
 import express from "express";
 import multer from "multer";
 import { auth } from "./lib/auth";
@@ -11,8 +10,6 @@ import {
   getUserMetadataByEmailIngestAddress,
   getUserMetadataByPhoneNumber,
 } from "./userMeta";
-
-dotenv.config();
 
 const { PORT } = process.env;
 

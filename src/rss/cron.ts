@@ -1,6 +1,5 @@
 import cron from "node-cron";
 import fetch from "isomorphic-unfetch";
-import dotenv from "dotenv";
 
 import { getAccessToken } from "../lib/auth";
 import { rss } from "./rss";
@@ -10,8 +9,6 @@ import { allRssSubscriptionsResolver } from "../api/rss";
 import { convertKeysToCamelCase } from "../lib/utils";
 
 const logger = makeLogger("index");
-
-dotenv.config();
 
 const { BACKYARD_ROOT_URI } = process.env;
 

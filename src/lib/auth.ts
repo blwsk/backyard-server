@@ -1,8 +1,5 @@
 import unfetch from "isomorphic-unfetch";
-import dotenv from "dotenv";
 import { makeLogger } from "./logger";
-
-dotenv.config();
 
 const logger = makeLogger("auth");
 
