@@ -44,8 +44,6 @@ app.get("/api/item/:itemId", auth, item.getItemById);
 
 app.get("/api/items", auth, item.getItemsPaginated);
 
-app.delete("/api/item/:itemId", auth, item.deleteItemById);
-
 app.delete("/api/items", auth, item.deleteItemsBulk);
 
 app.get("/api/item/:itemId/clips", auth, item.getClipsForItem);

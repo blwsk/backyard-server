@@ -489,29 +489,28 @@ export const getItemsPaginated = async (
   res.send(itemPage);
 };
 
-export const deleteItemById = async (
-  req: express.Request,
-  res: express.Response
+export const deleteItemsBulkResolver = async (legacyItemIds: string[]) => {
+  const query = format(
+    "DELETE FROM items WHERE legacy_id IN (%L) RETURNING *;",
+    legacyItemIds
+  );
+
+  const { rows } = await client.query(query);
+
+  return rows;
+};
+
+export const deleteItemPreviewsBulkResolver = async (
+  legacyItemIds: string[]
 ) => {
-  const { itemId } = req.params;
+  const query = format(
+    "DELETE FROM item_previews WHERE legacy_id IN (%L) RETURNING *;",
+    legacyItemIds
+  );
 
-  const queryString = `
-      DELETE FROM items WHERE id = $1 RETURNING *;
-    `;
+  const { rows } = await client.query(query);
 
-  const values = [itemId];
-
-  const { rows } = await client.query(queryString, values);
-
-  const row = rows[0];
-
-  if (!row) {
-    res.status(404).end();
-  }
-
-  res.send({
-    message: `Item ${itemId} and its clips have been deleted.`,
-  });
+  return rows;
 };
 
 export const deleteItemsBulk = async (
@@ -520,18 +519,15 @@ export const deleteItemsBulk = async (
 ) => {
   const legacyItemIds = req.body;
 
-  const query = format(
-    "DELETE FROM items WHERE legacy_id IN (%L) RETURNING *;",
-    legacyItemIds
-  );
-
-  const { rows } = await client.query(query);
-
-  console.log(rows);
+  const [deletedItemRows, deletedItemPreviewRows] = await Promise.all([
+    deleteItemsBulkResolver(legacyItemIds),
+    deleteItemPreviewsBulkResolver(legacyItemIds),
+  ]);
 
   res.send({
     message: `Items with the provided ids have been deleted.`,
-    deletedLegacyItemIds: rows.map((row) => row.legacy_id),
+    deletedLegacyItemIds: deletedItemRows.map((row) => row.legacy_id),
+    deletedItemPreviewRowIds: deletedItemPreviewRows.map((row) => row.id),
   });
 };
 
