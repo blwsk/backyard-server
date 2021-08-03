@@ -17,6 +17,7 @@ import {
   legacyItemResolver,
   clipsForItemResolver,
   itemPageResolver,
+  itemPreviewPageResolver,
   contentDataLoader,
   originDataLoader,
 } from "./item";
@@ -80,8 +81,25 @@ const typeDefs = gql`
     clips: [Clip]
   }
 
+  type Preview {
+    id: ID!
+    legacyId: String
+    title: String
+    subtitle: String
+    json: String
+    source: String
+    domain: String
+    createdAt: Date!
+    createdBy: String!
+  }
+
   type ItemPage {
     results: [Item]
+    next: ID
+  }
+
+  type ItemPreviewPage {
+    results: [Preview]
     next: ID
   }
 
@@ -109,6 +127,12 @@ const typeDefs = gql`
       userId: String!
       sortOrder: SortOrder!
     ): ItemPage
+    itemPreviews(
+      size: Int
+      cursor: ID
+      userId: String!
+      sortOrder: SortOrder!
+    ): ItemPreviewPage
     clips(
       size: Int
       cursor: ID
@@ -165,8 +189,6 @@ const resolvers = {
         sortOrder,
       }: { size: number; cursor?: number; userId: string; sortOrder: SortOrder }
     ) {
-      void parent;
-
       const itemPage = await itemPageResolver({
         size,
         cursor,
@@ -177,6 +199,30 @@ const resolvers = {
       return {
         results: itemPage.results.map((item) => convertKeysToCamelCase(item)),
         next: itemPage.next,
+      };
+    },
+
+    async itemPreviews(
+      parent: any,
+      {
+        size = 20,
+        cursor,
+        userId,
+        sortOrder,
+      }: { size: number; cursor?: number; userId: string; sortOrder: SortOrder }
+    ) {
+      const itemPreviewPage = await itemPreviewPageResolver({
+        size,
+        cursor,
+        userId,
+        sortOrder,
+      });
+
+      return {
+        results: itemPreviewPage.results.map((item) =>
+          convertKeysToCamelCase(item)
+        ),
+        next: itemPreviewPage.next,
       };
     },
 

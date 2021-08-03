@@ -2,7 +2,7 @@ import express from "express";
 import { client } from "../lib/db";
 import { makeLogger } from "../lib/logger";
 import { convertKeysToCamelCase } from "../lib/utils";
-import { createItemResolver } from "./item";
+import { createItemResolver, EmailJson } from "./item";
 import { userMetadataByEmailIngestAddressResolver } from "./userMeta";
 
 const log = makeLogger("api::email");
@@ -39,12 +39,7 @@ export const receiveInboundEmail = async (
     return;
   }
 
-  const emailBody = convertKeysToCamelCase(rows[0].json) as {
-    to: string;
-    from: string;
-    envelope: string;
-    // others???
-  };
+  const emailBody = convertKeysToCamelCase(rows[0].json) as EmailJson;
 
   let parsedEnvelope: { to: string[]; from: string };
   try {

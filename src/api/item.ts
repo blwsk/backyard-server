@@ -4,7 +4,7 @@ import format from "pg-format";
 import { client } from "../lib/db";
 import { PG_MAX_INTEGER, SortOrder, isSortOrder } from "./lib/constants";
 import { makeLogger } from "../lib/logger";
-import { convertKeysToCamelCase } from "../lib/utils";
+import { convertKeysToCamelCase, getHostname } from "../lib/utils";
 
 const log = makeLogger("api::item");
 
@@ -160,6 +160,54 @@ export const itemPageResolver = async ({
   };
 };
 
+export const itemPreviewPageResolver = async ({
+  size = 20,
+  cursor = PG_MAX_INTEGER,
+  userId,
+  sortOrder,
+}: {
+  size?: number;
+  cursor?: number;
+  userId: string;
+  sortOrder: SortOrder;
+}): Promise<{ results: object[]; next?: number }> => {
+  if (!userId) {
+    throw new Error("itemPreviewPageResolver requires a userId argument");
+  }
+  if (!isSortOrder(sortOrder)) {
+    throw new Error("itemPreviewPageResolver requires a sortOrder argument");
+  }
+
+  let queryString;
+  switch (sortOrder) {
+    case "ASC":
+      queryString = `
+      SELECT * FROM item_previews WHERE id <= $1 AND created_by = $2 ORDER BY id ASC LIMIT $3;
+    `;
+      break;
+
+    case "DESC":
+    default:
+      queryString = `
+      SELECT * FROM item_previews WHERE id <= $1 AND created_by = $2 ORDER BY id DESC LIMIT $3;
+    `;
+      break;
+  }
+
+  const values = [cursor, userId, size + 1];
+
+  const { rows } = await client.query(queryString, values);
+
+  const results = rows.slice(0, size);
+  const nextRow = rows.length > size ? rows[rows.length - 1] : null;
+  const next = nextRow ? nextRow.id : null;
+
+  return {
+    results,
+    next,
+  };
+};
+
 export const EMAIL = "email";
 export const SMS = "sms";
 export const MANUAL = "manual";
@@ -167,12 +215,36 @@ export const RSS = "rss";
 
 export type Source = "email" | "sms" | "manual" | "rss";
 
+export interface TweetJson {
+  data: object[];
+  includes: object[];
+
+  to?: never;
+  from?: never;
+  subject?: never;
+  html?: never;
+  envelope?: never;
+}
+
+export interface EmailJson {
+  data?: never;
+  includes?: never;
+
+  to: string;
+  from: string;
+  subject?: string;
+  html: string;
+  envelope: string;
+}
+
+export type ItemJson = TweetJson | EmailJson;
+
 export interface Content {
   body?: string;
   title?: string;
   metaTitle?: string;
   metaDescription?: string;
-  json?: object;
+  json?: ItemJson;
 }
 
 export interface Origin {
@@ -271,14 +343,71 @@ export const createItemResolver = async ({
     return originRows[0] || null;
   };
 
+  const createPreviewRecord = async () => {
+    const title = content ? content.title : null;
+
+    const subtitle =
+      source === "email" && content && content.json && content.json.from
+        ? content.json.from
+        : null;
+
+    const domain =
+      source === "rss" && origin && origin.rssFeedUrl
+        ? getHostname(origin.rssFeedUrl)
+        : (source === "manual" || source === "sms") && url
+        ? getHostname(url)
+        : null;
+
+    const json =
+      source !== "email" && content && content.json ? content.json : null;
+
+    const template = {
+      legacy_id: legacyId,
+      title,
+      subtitle,
+      json,
+      source,
+      domain,
+      created_at: new Date(createdAt),
+      created_by: createdBy,
+    };
+
+    const { rows: itemPreviewRows } = await client.query(
+      `
+      INSERT INTO item_previews (
+        legacy_id, title, subtitle, json, source, domain, created_at, created_by
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8
+      ) RETURNING *;
+      `,
+      [
+        template.legacy_id,
+        template.title,
+        template.subtitle,
+        template.json,
+        template.source,
+        template.domain,
+        template.created_at,
+        template.created_by,
+      ]
+    );
+
+    return itemPreviewRows[0] || null;
+  };
+
   const contentRecord = await createContentRecord();
 
   const originRecord = await createOriginRecord();
+
+  const itemPreviewRecord = await createPreviewRecord();
 
   return {
     item: row,
     content: contentRecord ? convertKeysToCamelCase(contentRecord) : null,
     origin: originRecord ? convertKeysToCamelCase(originRecord) : null,
+    itemPreview: itemPreviewRecord
+      ? convertKeysToCamelCase(itemPreviewRecord)
+      : null,
   };
 };
 

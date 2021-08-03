@@ -30,3 +30,10 @@ export const convertKeysToCamelCase = (obj: { [key: string]: any }) => {
     {}
   );
 };
+
+const HOSTNAME_EXP = /^https?\:\/\/([^\/?#]+)(?:[\/?#]|$)/i;
+
+export function getHostname(str: string): string | null {
+  const matches = str.match(HOSTNAME_EXP);
+  return matches && matches[0] && matches[1] ? matches[1] : null;
+}
