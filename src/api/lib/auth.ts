@@ -1,6 +1,6 @@
 import express from "express";
 
-const { BACKYARD_SERVER_SECRET } = process.env;
+const { BACKYARD_SERVER_SECRET, NODE_ENV } = process.env;
 
 export const auth = (
   req: express.Request,
@@ -41,7 +41,11 @@ export const localOnly = (
   res: express.Response,
   next: express.NextFunction
 ) => {
-  if (req.headers.host && req.headers.host.indexOf("localhost") > -1) {
+  if (
+    NODE_ENV === "development" &&
+    req.headers.host &&
+    req.headers.host.indexOf("localhost") > -1
+  ) {
     next();
   } else {
     res.send("Unauthorized");
