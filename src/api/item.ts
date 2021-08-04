@@ -363,6 +363,12 @@ export const createPreviewRecord = async ({
   createdAt: number;
   createdBy: string;
 }) => {
+  console.log("createPreviewRecord", {
+    source,
+    subject:
+      source === "email" && content && content.json && content.json.subject,
+    from: source === "email" && content && content.json && content.json.from,
+  });
   const title =
     source === "email" && content && content.json && content.json.subject
       ? content.json.subject
