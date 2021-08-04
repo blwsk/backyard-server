@@ -35,3 +35,15 @@ export const auth = (
   // Authorized
   next();
 };
+
+export const localOnly = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) => {
+  if (req.headers.host && req.headers.host.indexOf("localhost") > -1) {
+    next();
+  } else {
+    res.send("Unauthorized");
+  }
+};
