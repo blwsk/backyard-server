@@ -83,11 +83,11 @@ const typeDefs = gql`
 
   type Preview {
     id: ID!
-    legacyId: String!
+    legacyId: String
     title: String
     subtitle: String
-    json: JSON
-    source: String!
+    json: String
+    source: String
     domain: String
     createdAt: Date!
     createdBy: String!
