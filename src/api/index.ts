@@ -1,10 +1,11 @@
 import express from "express";
 import multer from "multer";
-import { auth } from "./lib/auth";
+import { auth, localOnly } from "./lib/auth";
 import * as item from "./item";
 import * as clip from "./clip";
 import * as email from "./email";
 import { applyApollo } from "./graphql";
+import { graphiql } from "./lib/graphiql";
 import { verifyPhoneNumber, confirmPhoneNumber } from "./sms";
 import {
   getUserMetadataByEmailIngestAddress,
@@ -34,6 +35,8 @@ app.get("/", (req: express.Request, res: express.Response) => {
 app.use("/graphql", auth);
 
 applyApollo(app);
+
+app.get("/graphiql", localOnly, graphiql);
 
 /**
  * ITEMS
