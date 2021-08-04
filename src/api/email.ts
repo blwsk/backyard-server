@@ -83,9 +83,6 @@ export const receiveInboundEmail = async (
 
   const userMetadata = convertKeysToCamelCase(userMetadataMaybe);
 
-  console.log("jsonBody.subject", jsonBody.subject);
-  console.log("emailBody.subject", emailBody.subject);
-
   const item = await createItemResolver({
     createdBy: userMetadata.userId,
     createdAt: Date.now(),
