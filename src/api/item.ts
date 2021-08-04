@@ -22,12 +22,12 @@ export const itemResolver = async (itemId: string) => {
   return row;
 };
 
-export const legacyItemResolver = async (itemId: string) => {
+export const legacyItemResolver = async (legacyId: string): Promise<Item> => {
   const queryString = `
   SELECT * FROM items WHERE legacy_id = $1;
 `;
 
-  const values = [itemId];
+  const values = [legacyId];
 
   const { rows } = await client.query(queryString, values);
 
@@ -36,7 +36,7 @@ export const legacyItemResolver = async (itemId: string) => {
   return row;
 };
 
-export const contentResolver = async (itemId: string) => {
+export const contentResolver = async (itemId: string): Promise<Content> => {
   const queryString = `
   SELECT * FROM content WHERE item_id = $1;
 `;
@@ -68,7 +68,7 @@ export const contentDataLoader = new DataLoader((keys: readonly string[]) =>
   contentResolverBulk(keys)
 );
 
-export const originResolver = async (itemId: string) => {
+export const originResolver = async (itemId: string): Promise<Origin> => {
   const queryString = `
   SELECT * FROM origins WHERE item_id = $1;
 `;
@@ -213,7 +213,7 @@ export const SMS = "sms";
 export const MANUAL = "manual";
 export const RSS = "rss";
 
-export type Source = "email" | "sms" | "manual" | "rss";
+export type ItemSource = "email" | "sms" | "manual" | "rss";
 
 export interface TweetJson {
   data: object[];
@@ -258,13 +258,166 @@ export interface Item {
   createdBy: string;
   createdAt: number;
   content?: Content;
-  source?: Source;
+  source?: ItemSource;
   origin?: Origin;
 }
 
 export interface ItemWithLegacyId extends Item {
-  legacyId?: bigint;
+  legacyId: bigint;
 }
+
+export interface ItemRow extends ItemWithLegacyId {
+  id: number;
+}
+
+export interface ItemPreview {
+  id: number;
+  legacyId: bigint;
+  title?: string;
+  subtitle?: string;
+  json?: TweetJson;
+  source: ItemSource;
+  domain?: string;
+  createdAt: Date;
+  createdBy: string;
+}
+
+const createContentRecord = async ({
+  content,
+  generatedItemId,
+}: {
+  content?: Content;
+  generatedItemId: bigint;
+}) => {
+  if (!content) {
+    return null;
+  }
+
+  const {
+    body = null,
+    title = null,
+    metaTitle = null,
+    metaDescription = null,
+    json = null,
+  } = content;
+
+  const { rows: contentRows } = await client.query(
+    `
+      INSERT INTO content (
+        body, title, meta_title, meta_description, json, item_id
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6
+      ) RETURNING *;
+      `,
+    [body, title, metaTitle, metaDescription, json, generatedItemId]
+  );
+
+  return contentRows[0] || null;
+};
+
+const createOriginRecord = async ({
+  origin,
+  generatedItemId,
+}: {
+  origin?: Origin;
+  generatedItemId: bigint;
+}) => {
+  if (!origin) {
+    return null;
+  }
+
+  const {
+    emailBody = null,
+    rssEntryContent = null,
+    rssFeedUrl = null,
+  } = origin;
+
+  const { rows: originRows } = await client.query(
+    `
+      INSERT INTO origins (
+        email_body, rss_entry_content, rss_feed_url, item_id
+      ) VALUES (
+        $1, $2, $3, $4
+      ) RETURNING *;
+      `,
+    [emailBody, rssEntryContent, rssFeedUrl, generatedItemId]
+  );
+
+  return originRows[0] || null;
+};
+
+export const createPreviewRecord = async ({
+  content,
+  origin,
+  source,
+  url,
+  legacyId,
+  createdAt,
+  createdBy,
+}: {
+  content?: Content;
+  origin?: Origin;
+  source?: string;
+  url?: string;
+  legacyId: bigint;
+  createdAt: number;
+  createdBy: string;
+}) => {
+  const title =
+    source === "email" && content && content.json && content.json.subject
+      ? content.json.subject
+      : content
+      ? content.title
+      : url;
+
+  const subtitle =
+    source === "email" && content && content.json && content.json.from
+      ? content.json.from
+      : null;
+
+  const domain =
+    source === "rss" && origin && origin.rssFeedUrl
+      ? getHostname(origin.rssFeedUrl)
+      : (source === "manual" || source === "sms") && url
+      ? getHostname(url)
+      : null;
+
+  const json =
+    source !== "email" && content && content.json ? content.json : null;
+
+  const template = {
+    legacy_id: legacyId,
+    title,
+    subtitle,
+    json,
+    source,
+    domain,
+    created_at: new Date(createdAt),
+    created_by: createdBy,
+  };
+
+  const { rows: itemPreviewRows } = await client.query(
+    `
+      INSERT INTO item_previews (
+        legacy_id, title, subtitle, json, source, domain, created_at, created_by
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8
+      ) RETURNING *;
+      `,
+    [
+      template.legacy_id,
+      template.title,
+      template.subtitle,
+      template.json,
+      template.source,
+      template.domain,
+      template.created_at,
+      template.created_by,
+    ]
+  );
+
+  return itemPreviewRows[0] || null;
+};
 
 export const createItemResolver = async ({
   url,
@@ -291,115 +444,19 @@ export const createItemResolver = async ({
 
   const generatedItemId = row.id;
 
-  const createContentRecord = async () => {
-    if (!content) {
-      return null;
-    }
+  const contentRecord = await createContentRecord({ content, generatedItemId });
 
-    const {
-      body = null,
-      title = null,
-      metaTitle = null,
-      metaDescription = null,
-      json = null,
-    } = content;
+  const originRecord = await createOriginRecord({ origin, generatedItemId });
 
-    const { rows: contentRows } = await client.query(
-      `
-      INSERT INTO content (
-        body, title, meta_title, meta_description, json, item_id
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6
-      ) RETURNING *;
-      `,
-      [body, title, metaTitle, metaDescription, json, generatedItemId]
-    );
-
-    return contentRows[0] || null;
-  };
-
-  const createOriginRecord = async () => {
-    if (!origin) {
-      return null;
-    }
-
-    const {
-      emailBody = null,
-      rssEntryContent = null,
-      rssFeedUrl = null,
-    } = origin;
-
-    const { rows: originRows } = await client.query(
-      `
-      INSERT INTO origins (
-        email_body, rss_entry_content, rss_feed_url, item_id
-      ) VALUES (
-        $1, $2, $3, $4
-      ) RETURNING *;
-      `,
-      [emailBody, rssEntryContent, rssFeedUrl, generatedItemId]
-    );
-
-    return originRows[0] || null;
-  };
-
-  const createPreviewRecord = async () => {
-    const title = content ? content.title : null;
-
-    const subtitle =
-      source === "email" && content && content.json && content.json.from
-        ? content.json.from
-        : null;
-
-    const domain =
-      source === "rss" && origin && origin.rssFeedUrl
-        ? getHostname(origin.rssFeedUrl)
-        : (source === "manual" || source === "sms") && url
-        ? getHostname(url)
-        : null;
-
-    const json =
-      source !== "email" && content && content.json ? content.json : null;
-
-    const template = {
-      legacy_id: legacyId,
-      title,
-      subtitle,
-      json,
-      source,
-      domain,
-      created_at: new Date(createdAt),
-      created_by: createdBy,
-    };
-
-    const { rows: itemPreviewRows } = await client.query(
-      `
-      INSERT INTO item_previews (
-        legacy_id, title, subtitle, json, source, domain, created_at, created_by
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8
-      ) RETURNING *;
-      `,
-      [
-        template.legacy_id,
-        template.title,
-        template.subtitle,
-        template.json,
-        template.source,
-        template.domain,
-        template.created_at,
-        template.created_by,
-      ]
-    );
-
-    return itemPreviewRows[0] || null;
-  };
-
-  const contentRecord = await createContentRecord();
-
-  const originRecord = await createOriginRecord();
-
-  const itemPreviewRecord = await createPreviewRecord();
+  const itemPreviewRecord = await createPreviewRecord({
+    content,
+    origin,
+    source,
+    url,
+    legacyId,
+    createdAt,
+    createdBy,
+  });
 
   return {
     item: row,
