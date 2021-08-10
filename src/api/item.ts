@@ -1,14 +1,15 @@
 import express from "express";
 import DataLoader from "dataloader";
-import format from "pg-format";
+import format, { string } from "pg-format";
 import { client } from "../lib/db";
 import { PG_MAX_INTEGER, SortOrder, isSortOrder } from "./lib/constants";
 import { makeLogger } from "../lib/logger";
 import { convertKeysToCamelCase, getHostname } from "../lib/utils";
+import { deleteFromSearchIndex, indexForSearch } from "../queue";
 
 const log = makeLogger("api::item");
 
-export const itemResolver = async (itemId: string) => {
+export const itemResolver = async (itemId: string): Promise<ItemRow> => {
   const queryString = `
   SELECT * FROM items WHERE id = $1;
 `;
@@ -22,7 +23,9 @@ export const itemResolver = async (itemId: string) => {
   return row;
 };
 
-export const legacyItemResolver = async (legacyId: string): Promise<Item> => {
+export const legacyItemResolver = async (
+  legacyId: string
+): Promise<ItemRow> => {
   const queryString = `
   SELECT * FROM items WHERE legacy_id = $1;
 `;
@@ -258,7 +261,7 @@ export interface Item {
   createdBy: string;
   createdAt: number;
   content?: Content;
-  source?: ItemSource;
+  source: ItemSource;
   origin?: Origin;
 }
 
@@ -284,10 +287,10 @@ export interface ItemPreview {
 
 const createContentRecord = async ({
   content,
-  generatedItemId,
+  itemId,
 }: {
   content?: Content;
-  generatedItemId: bigint;
+  itemId: number;
 }) => {
   if (!content) {
     return null;
@@ -309,7 +312,7 @@ const createContentRecord = async ({
         $1, $2, $3, $4, $5, $6
       ) RETURNING *;
       `,
-    [body, title, metaTitle, metaDescription, json, generatedItemId]
+    [body, title, metaTitle, metaDescription, json, itemId]
   );
 
   return contentRows[0] || null;
@@ -317,10 +320,10 @@ const createContentRecord = async ({
 
 const createOriginRecord = async ({
   origin,
-  generatedItemId,
+  itemId,
 }: {
   origin?: Origin;
-  generatedItemId: bigint;
+  itemId: number;
 }) => {
   if (!origin) {
     return null;
@@ -340,10 +343,72 @@ const createOriginRecord = async ({
         $1, $2, $3, $4
       ) RETURNING *;
       `,
-    [emailBody, rssEntryContent, rssFeedUrl, generatedItemId]
+    [emailBody, rssEntryContent, rssFeedUrl, itemId]
   );
 
   return originRows[0] || null;
+};
+
+export const makePreviewTemplate = ({
+  content,
+  origin,
+  source,
+  url,
+  legacyId,
+  createdAt,
+  createdBy,
+}: {
+  content?: Content;
+  origin?: Origin;
+  source: ItemSource;
+  url?: string;
+  legacyId: bigint;
+  createdAt: number;
+  createdBy: string;
+}): {
+  legacy_id: bigint;
+  title?: string;
+  subtitle?: string;
+  json?: TweetJson;
+  source: ItemSource;
+  domain?: string;
+  created_at: Date;
+  created_by: string;
+} => {
+  const title =
+    source === "email" && content && content.json && content.json.subject
+      ? content.json.subject
+      : content
+      ? content.title
+      : url;
+
+  const subtitle =
+    source === "email" && content && content.json && content.json.from
+      ? content.json.from
+      : undefined;
+
+  const domain =
+    source === "rss" && origin && origin.rssFeedUrl
+      ? getHostname(origin.rssFeedUrl)
+      : (source === "manual" || source === "sms") && url
+      ? getHostname(url)
+      : null;
+
+  const json =
+    source !== "email" && content && content.json
+      ? (content.json as TweetJson)
+      : undefined;
+
+  return {
+    legacy_id: legacyId,
+    title,
+    subtitle,
+    json,
+    source,
+    domain: domain || undefined,
+    created_at: new Date(createdAt),
+    created_by: createdBy,
+  };
 };
 
 export const createPreviewRecord = async ({
@@ -357,7 +422,7 @@ export const createPreviewRecord = async ({
 }: {
   content?: Content;
   origin?: Origin;
-  source?: string;
+  source: ItemSource;
   url?: string;
   legacyId: bigint;
   createdAt: number;
@@ -369,38 +434,16 @@ export const createPreviewRecord = async ({
       source === "email" && content && content.json && content.json.subject,
     from: source === "email" && content && content.json && content.json.from,
   });
-  const title =
-    source === "email" && content && content.json && content.json.subject
-      ? content.json.subject
-      : content
-      ? content.title
-      : url;
 
-  const subtitle =
-    source === "email" && content && content.json && content.json.from
-      ? content.json.from
-      : null;
-
-  const domain =
-    source === "rss" && origin && origin.rssFeedUrl
-      ? getHostname(origin.rssFeedUrl)
-      : (source === "manual" || source === "sms") && url
-      ? getHostname(url)
-      : null;
-
-  const json =
-    source !== "email" && content && content.json ? content.json : null;
-
-  const template = {
-    legacy_id: legacyId,
-    title,
-    subtitle,
-    json,
+  const previewTemplate = makePreviewTemplate({
+    content,
+    origin,
     source,
-    domain,
-    created_at: new Date(createdAt),
-    created_by: createdBy,
-  };
+    url,
+    legacyId,
+    createdAt,
+    createdBy,
+  });
 
   const { rows: itemPreviewRows } = await client.query(
     `
@@ -411,14 +454,14 @@ export const createPreviewRecord = async ({
       ) RETURNING *;
       `,
     [
-      template.legacy_id,
-      template.title,
-      template.subtitle,
-      template.json,
-      template.source,
-      template.domain,
-      template.created_at,
-      template.created_by,
+      previewTemplate.legacy_id,
+      previewTemplate.title,
+      previewTemplate.subtitle,
+      previewTemplate.json,
+      previewTemplate.source,
+      previewTemplate.domain,
+      previewTemplate.created_at,
+      previewTemplate.created_by,
     ]
   );
 
@@ -448,11 +491,11 @@ export const createItemResolver = async ({
 
   const row = rows[0];
 
-  const generatedItemId = row.id;
+  const itemId = row.id as number;
 
-  const contentRecord = await createContentRecord({ content, generatedItemId });
+  const contentRecord = await createContentRecord({ content, itemId });
 
-  const originRecord = await createOriginRecord({ origin, generatedItemId });
+  const originRecord = await createOriginRecord({ origin, itemId });
 
   const itemPreviewRecord = await createPreviewRecord({
     content,
@@ -463,6 +506,10 @@ export const createItemResolver = async ({
     createdAt,
     createdBy,
   });
+
+  const now = Date.now();
+  await indexForSearch(itemId);
+  console.log("enqueue time", Date.now() - now);
 
   return {
     item: row,
@@ -552,7 +599,7 @@ export const getItemsPaginated = async (
   res.send(itemPage);
 };
 
-export const deleteItemsBulkResolver = async (legacyItemIds: string[]) => {
+const deleteItemsBulkResolver = async (legacyItemIds: bigint[]) => {
   const query = format(
     "DELETE FROM items WHERE legacy_id IN (%L) RETURNING *;",
     legacyItemIds
@@ -563,9 +610,7 @@ export const deleteItemsBulkResolver = async (legacyItemIds: string[]) => {
   return rows;
 };
 
-export const deleteItemPreviewsBulkResolver = async (
-  legacyItemIds: string[]
-) => {
+const deleteItemPreviewsBulkResolver = async (legacyItemIds: bigint[]) => {
   const query = format(
     "DELETE FROM item_previews WHERE legacy_id IN (%L) RETURNING *;",
     legacyItemIds
@@ -580,11 +625,16 @@ export const deleteItemsBulk = async (
   req: express.Request,
   res: express.Response
 ) => {
-  const legacyItemIds = req.body;
+  const legacyItemIds = req.body as bigint[];
 
-  const [deletedItemRows, deletedItemPreviewRows] = await Promise.all([
+  const [
+    deletedItemRows,
+    deletedItemPreviewRows,
+    __deleteFromSeachIndex,
+  ] = await Promise.all([
     deleteItemsBulkResolver(legacyItemIds),
     deleteItemPreviewsBulkResolver(legacyItemIds),
+    deleteFromSearchIndex(legacyItemIds),
   ]);
 
   res.send({

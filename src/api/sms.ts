@@ -1,15 +1,5 @@
 import express from "express";
-import redis from "redis";
-
-const { REDIS_URL } = process.env;
-
-const client = redis.createClient({
-  url: REDIS_URL,
-});
-
-client.on("error", (error) => {
-  console.error(error);
-});
+import { client } from "../lib/redis";
 
 interface SmsVerifier {
   phoneNumber: string | null;
@@ -46,9 +36,13 @@ const generateRandomPin = () => {
   return `${leftPadded}${pinStr}`;
 };
 
-const generateKey = ({ phoneNumber, userId }: Partial<SmsVerifier>): string => {
-  const key = JSON.stringify({ phoneNumber, userId });
-  return `sms-verify|${key}`;
+const SMS_VERIFY_KEY = "sms-verify";
+
+const generateFieldName = ({
+  phoneNumber,
+  userId,
+}: Partial<SmsVerifier>): string => {
+  return JSON.stringify({ phoneNumber, userId });
 };
 
 const TIME_LIMIT = 5 * 60 * 1000;
@@ -68,16 +62,21 @@ export const verifyPhoneNumber = async (
 
   console.log(smsVerifierObj);
 
-  const key = generateKey({ phoneNumber, userId });
+  const field = generateFieldName({ phoneNumber, userId });
 
-  client.set(key, JSON.stringify(smsVerifierObj), (err, result) => {
-    if (err) {
-      res.status(400).send(err);
-      return;
+  client.hmset(
+    SMS_VERIFY_KEY,
+    field,
+    JSON.stringify(smsVerifierObj),
+    (err, result) => {
+      if (err) {
+        res.status(400).send(err);
+        return;
+      }
+
+      res.status(200).send(smsVerifierObj);
     }
-
-    res.status(200).send(smsVerifierObj);
-  });
+  );
 };
 
 export const confirmPhoneNumber = async (
@@ -86,9 +85,9 @@ export const confirmPhoneNumber = async (
 ) => {
   const { pin, userId, phoneNumber } = req.body;
 
-  const key = generateKey({ phoneNumber, userId });
+  const field = generateFieldName({ phoneNumber, userId });
 
-  client.get(key, (err, result) => {
+  client.hmget(SMS_VERIFY_KEY, field, (err, result) => {
     if (err) {
       res.status(400).send(err);
       return;
@@ -102,7 +101,8 @@ export const confirmPhoneNumber = async (
     let json;
 
     try {
-      json = JSON.parse(result);
+      const first = result && result[0];
+      json = JSON.parse(first);
     } catch (parseError) {
       res.status(400).send();
       return;
