@@ -42,7 +42,6 @@ export const localOnly = (
   next: express.NextFunction
 ) => {
   if (
-    NODE_ENV === "development" &&
     req.headers.host &&
     req.headers.host.indexOf("localhost") > -1
   ) {

@@ -24,6 +24,7 @@ import {
 import { clipPageResolver } from "./clip";
 import { convertKeysToCamelCase } from "../lib/utils";
 import { SortOrder } from "./lib/constants";
+import { createNoteResolver, notePageResolver, updateNoteResolver } from "./notes";
 
 const typeDefs = gql`
   scalar JSON
@@ -117,6 +118,19 @@ const typeDefs = gql`
     id: ID
   }
 
+  type Note {
+    id: ID!
+    text: String!
+    createdAt: Date!
+    updatedAt: Date!
+    createdBy: String!
+  }
+
+  type NotePage {
+    results: [Note]
+    next: ID
+  }
+
   type Query {
     userMetadata(userId: String!): UserMetadata
     legacyItem(id: ID!): Item
@@ -139,6 +153,12 @@ const typeDefs = gql`
       userId: String!
       sortOrder: SortOrder!
     ): ClipPage
+    notes(
+      size: Int
+      cursor: ID
+      userId: String!
+      sortOrder: SortOrder!
+    ): NotePage
   }
 
   type Mutation {
@@ -151,6 +171,8 @@ const typeDefs = gql`
     deleteEmailIngestAddress(userId: String!): UserMetadata!
     createPhoneNumber(userId: String!, phoneNumber: String!): UserMetadata!
     deletePhoneNumber(userId: String!): UserMetadata!
+    createNote(text: String!, userId: String!): Note!
+    updateNote(id: ID!, text: String!, userId: String!): Note!
   }
 `;
 
@@ -249,6 +271,30 @@ const resolvers = {
         next: clipPage.next,
       };
     },
+
+    async notes(
+      parent: any,
+      {
+        size = 20,
+        cursor,
+        userId,
+        sortOrder,
+      }: { size: number; cursor?: number; userId: string; sortOrder: SortOrder }
+    ) {
+      void parent;
+
+      const notePage = await notePageResolver({
+        size,
+        cursor,
+        userId,
+        sortOrder,
+      });
+
+      return {
+        results: notePage.results.map((note) => convertKeysToCamelCase(note)),
+        next: notePage.next,
+      };
+    },
   },
 
   Mutation: {
@@ -342,6 +388,39 @@ const resolvers = {
       });
 
       return convertKeysToCamelCase(userMetadata);
+    },
+
+    async createNote(
+      parent: any,
+      args: { userId: string; text: string }
+    ) {
+      void parent;
+
+      const { userId, text } = args;
+
+      const note = await createNoteResolver({
+        userId,
+        text,
+      });
+
+      return convertKeysToCamelCase(note);
+    },
+
+    async updateNote(
+      parent: any,
+      args: { id: number; userId: string; text: string }
+    ) {
+      void parent;
+
+      const { id, userId, text } = args;
+
+      const note = await updateNoteResolver({
+        id,
+        userId,
+        text,
+      });
+
+      return convertKeysToCamelCase(note);
     },
   },
 
