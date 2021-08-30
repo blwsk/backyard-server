@@ -50,16 +50,20 @@ export const notePageResolver = async ({
 };
 
 type NoteRow = {
-    id: number;
-    text: string;
-    created_by: string;
-    created_at: string;
-    updated_at: string;
+  id: number;
+  text: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 };
 
-export const createNoteResolver = async (
-  { text, userId }: { text: string; userId: string;}
-): Promise<NoteRow> => {
+export const createNoteResolver = async ({
+  text,
+  userId,
+}: {
+  text: string;
+  userId: string;
+}): Promise<NoteRow> => {
   const queryString = `
       INSERT INTO notes (
           text, created_by, created_at, updated_at
@@ -70,7 +74,7 @@ export const createNoteResolver = async (
 
   const now = new Date();
 
-  const values = [text, userId, now, now] ;
+  const values = [text, userId, now, now];
 
   let rows = [];
 
@@ -86,16 +90,22 @@ export const createNoteResolver = async (
   return row;
 };
 
-export const updateNoteResolver = async (
-  { id, text, userId }: { id: number; text: string; userId: string;}
-): Promise<NoteRow> => {
+export const updateNoteResolver = async ({
+  id,
+  text,
+  userId,
+}: {
+  id: number;
+  text: string;
+  userId: string;
+}): Promise<NoteRow> => {
   const queryString = `
       UPDATE notes SET text = $1, updated_at = $2 WHERE id = $3 AND created_by = $4 RETURNING *;
     `;
 
   const now = new Date();
 
-  const values = [text, now, id, userId,] ;
+  const values = [text, now, id, userId];
 
   let rows = [];
 
@@ -109,4 +119,21 @@ export const updateNoteResolver = async (
 
   const row = rows[0];
   return row;
+};
+
+export const deleteNoteResolver = async ({
+  id,
+  userId,
+}: {
+  id: number;
+  userId: string;
+}) => {
+  const query =
+    "DELETE FROM notes WHERE id = $1 AND created_by = $2 RETURNING *;";
+
+  const values = [id, userId];
+
+  const { rows } = await client.query(query, values);
+
+  return rows?.length ? id : null;
 };

@@ -24,7 +24,12 @@ import {
 import { clipPageResolver } from "./clip";
 import { convertKeysToCamelCase } from "../lib/utils";
 import { SortOrder } from "./lib/constants";
-import { createNoteResolver, notePageResolver, updateNoteResolver } from "./notes";
+import {
+  createNoteResolver,
+  notePageResolver,
+  updateNoteResolver,
+  deleteNoteResolver,
+} from "./notes";
 
 const typeDefs = gql`
   scalar JSON
@@ -173,6 +178,7 @@ const typeDefs = gql`
     deletePhoneNumber(userId: String!): UserMetadata!
     createNote(text: String!, userId: String!): Note!
     updateNote(id: ID!, text: String!, userId: String!): Note!
+    deleteNote(id: ID!, userId: String!): ID!
   }
 `;
 
@@ -390,10 +396,7 @@ const resolvers = {
       return convertKeysToCamelCase(userMetadata);
     },
 
-    async createNote(
-      parent: any,
-      args: { userId: string; text: string }
-    ) {
+    async createNote(parent: any, args: { userId: string; text: string }) {
       void parent;
 
       const { userId, text } = args;
@@ -421,6 +424,22 @@ const resolvers = {
       });
 
       return convertKeysToCamelCase(note);
+    },
+
+    async deleteNote(
+      parent: any,
+      args: { id: number; userId: string; text: string }
+    ) {
+      void parent;
+
+      const { id, userId } = args;
+
+      await deleteNoteResolver({
+        id,
+        userId,
+      });
+
+      return id;
     },
   },
 
