@@ -26,7 +26,7 @@ app.use(
 );
 
 app.get("/", (req: express.Request, res: express.Response) => {
-  res.status(200).send("Hello");
+  res.status(200).send("Hello from api.backyard.wtf");
 });
 
 /**
